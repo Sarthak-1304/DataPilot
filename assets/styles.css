@@ -554,3 +554,38 @@ html, body, [data-testid="stAppViewContainer"] {
         font-size: 1.35rem;
     }
 }
+
+/* ================================================================
+   RADIO BUTTON LABELS VISIBILITY FIX (MAIN AREA ONLY)
+   Scoped to main content — must NOT leak into the sidebar.
+   ================================================================ */
+[data-testid="stMain"] .stRadio [role="radiogroup"] label,
+[data-testid="stMain"] .stRadio [role="radiogroup"] label p,
+[data-testid="stMain"] .stRadio [role="radiogroup"] label span,
+[data-testid="stMain"] .stRadio [role="radiogroup"] label div {
+    color: var(--text-primary) !important;
+    font-weight: 500 !important;
+    font-size: 0.92rem !important;
+    opacity: 1 !important;
+}
+
+/* ================================================================
+   WIDGET LABELS READABILITY FIX (MAIN AREA ONLY)
+   Uses data-testid selectors to avoid matching sidebar elements.
+   ================================================================ */
+[data-testid="stMain"] [data-testid="stWidgetLabel"],
+[data-testid="stMain"] [data-testid="stWidgetLabel"] p,
+[data-testid="stMain"] [data-testid="stWidgetLabel"] span,
+[data-testid="stMain"] [data-testid="stWidgetLabel"] div {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+    font-size: 0.92rem !important;
+    opacity: 1 !important;
+}
+
+/* Tooltip icon */
+[data-testid="stMain"] [data-testid="stTooltipIcon"] {
+    opacity: 0.8 !important;
+}
+
+
