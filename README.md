@@ -1,4 +1,4 @@
-# Data Cleaning Studio
+# Data Pilot
 
 A **production‑quality** data‑cleaning web application built with **Streamlit**, **Pandas**, **Plotly**, and **ReportLab**.
 
