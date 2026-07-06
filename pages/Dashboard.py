@@ -8,21 +8,7 @@ recommendations, sample preview, and recent activity.
 import streamlit as st
 import pandas as pd
 import numpy as np
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────────────────────────────
-
-def _quality_score(df: pd.DataFrame) -> int:
-    """Compute a simple 0-100 data quality score."""
-    total_cells = df.shape[0] * df.shape[1]
-    if total_cells == 0:
-        return 0
-    missing_pct = df.isnull().sum().sum() / total_cells
-    dup_pct = df.duplicated().sum() / max(df.shape[0], 1)
-    score = max(0, 100 - int(missing_pct * 60 + dup_pct * 40))
-    return score
+from utils.cleaner import calculate_quality_score
 
 
 def _score_color(score: int) -> str:
@@ -52,7 +38,7 @@ def _render_welcome():
     st.markdown(
         """
         <div class="top-header">
-            <h2>🏠 Welcome to Data Cleaning Studio</h2>
+            <h2>🏠 Welcome to Data Pilot</h2>
             <p>Upload a dataset to unlock powerful analysis, cleaning, and reporting tools.</p>
         </div>
         """,
@@ -136,7 +122,7 @@ def _render_loaded_dashboard():
     missing_pct = (missing_cells / total_cells * 100) if total_cells else 0
     duplicates = int(working_df.duplicated().sum())
     mem_bytes = working_df.memory_usage(deep=True).sum()
-    score = _quality_score(working_df)
+    score = calculate_quality_score(working_df)["total"]
 
     m1, m2, m3, m4, m5 = st.columns(5)
 

@@ -158,49 +158,10 @@ def get_memory_usage(df: pd.DataFrame) -> str:
 def calculate_quality_score(df: pd.DataFrame) -> int:
     """
     Calculate a data quality score from 0-100.
-
-    Factors considered:
-        - Completeness (no missing values)     : 35 points
-        - Uniqueness (no duplicate rows)        : 20 points
-        - Consistency (column types detected)   : 15 points
-        - Validity (no fully-empty columns)     : 15 points
-        - Column naming quality                 : 15 points
+    Delegates to the unified implementation in utils.cleaner.
     """
-    if df is None or df.empty:
-        return 0
-
-    score = 0.0
-    total_cells = df.shape[0] * df.shape[1]
-
-    # --- Completeness (35 pts) ---
-    if total_cells > 0:
-        missing_ratio = df.isnull().sum().sum() / total_cells
-        score += (1 - missing_ratio) * 35
-
-    # --- Uniqueness (20 pts) ---
-    if len(df) > 0:
-        duplicate_ratio = df.duplicated().sum() / len(df)
-        score += (1 - duplicate_ratio) * 20
-
-    # --- Consistency: ratio of columns with proper types (15 pts) ---
-    type_counts = df.dtypes.value_counts()
-    object_ratio = type_counts.get("object", 0) / len(df.columns) if len(df.columns) > 0 else 1
-    score += (1 - object_ratio * 0.5) * 15
-
-    # --- Validity: penalize fully-empty columns (15 pts) ---
-    if len(df.columns) > 0:
-        empty_cols = (df.isnull().all()).sum()
-        score += (1 - empty_cols / len(df.columns)) * 15
-
-    # --- Column naming: penalize unnamed / default columns (15 pts) ---
-    if len(df.columns) > 0:
-        bad_names = sum(
-            1 for c in df.columns
-            if str(c).startswith("Unnamed") or str(c).strip() == ""
-        )
-        score += (1 - bad_names / len(df.columns)) * 15
-
-    return min(100, max(0, int(round(score))))
+    from utils.cleaner import calculate_quality_score as calc_dict
+    return calc_dict(df)["total"]
 
 
 # =============================================================================

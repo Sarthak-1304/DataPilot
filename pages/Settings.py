@@ -40,7 +40,7 @@ def render_settings():
             <div class="content-card">
                 <h3>❓ About</h3>
                 <p style="font-size: 0.85rem; color: #64748B; line-height: 1.7;">
-                    <strong>Data Cleaning Studio</strong> is a professional data cleaning
+                    <strong>Data Pilot</strong> is a professional data cleaning
                     and analysis tool built with Streamlit, Pandas, and Plotly.<br><br>
                     Designed for data analysts who need a fast, visual, and reliable
                     way to clean and prepare datasets for analysis.

@@ -331,13 +331,47 @@ def render_analysis():
         )
         return
 
-    # Use cleaned data if available, otherwise original
-    working_df = st.session_state.get("cleaned_df", df)
+    original_df = st.session_state["original_df"]
+    cleaned_df = st.session_state.get("cleaned_df")
 
-    _render_overview_metrics(working_df)
+    if cleaned_df is not None:
+        target_df = cleaned_df
+        banner_text = "Currently analyzing cleaned dataset"
+        banner_icon = "✅"
+        banner_bg = "rgba(16,185,129,0.08)"
+        banner_border = "rgba(16,185,129,0.25)"
+        steps = st.session_state.get("cleaning_steps", [])
+        step_count = len(steps) if steps else 0
+        banner_desc = f"— {step_count} cleaning step(s) applied"
+    else:
+        target_df = original_df
+        banner_text = "Currently analyzing original dataset"
+        banner_icon = "⚠️"
+        banner_bg = "rgba(245,158,11,0.08)"
+        banner_border = "rgba(245,158,11,0.25)"
+        banner_desc = "— No cleaning steps applied yet"
+
+    st.markdown(
+        f"""
+        <div style="background:{banner_bg}; border:1px solid {banner_border};
+                    border-radius:8px; padding:0.6rem 1rem; margin-bottom:1rem;
+                    font-size:0.85rem; display:flex; align-items:center; gap:0.5rem;">
+            <span style="font-size:1.1rem;">{banner_icon}</span>
+            <span><strong>{banner_text}</strong>
+            ({target_df.shape[0]:,} rows × {target_df.shape[1]} cols)
+            {banner_desc}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Analysis runs on target_df
+    _render_overview_metrics(target_df)
     st.markdown("")
-    _render_dataset_info(working_df)
+    _render_dataset_info(target_df)
     st.markdown("")
-    _render_summary_statistics(working_df)
+    _render_summary_statistics(target_df)
     st.markdown("")
-    _render_visualizations(working_df)
+    _render_visualizations(target_df)
+
+

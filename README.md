@@ -18,7 +18,7 @@ A **production‑quality** data‑cleaning web application built with **Streamli
 
 ## Project Structure
 ```
-DataCleaningStudio/
+DataPilot/
 │   app.py
 │   requirements.txt
 │   .gitignore
@@ -54,7 +54,7 @@ DataCleaningStudio/
 ## Getting Started
 ```bash
 # Clone the repo (if hosted remotely) or simply navigate to the folder
-cd DataCleaningStudio
+cd DataPilot
 
 # Create a virtual environment (optional but recommended)
 python -m venv venv

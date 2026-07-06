@@ -1,6 +1,6 @@
 /*
 ================================================================
-  Data Cleaning Studio — Custom Stylesheet
+  Data Pilot — Custom Stylesheet
   Modern admin dashboard theme with dark sidebar
 ================================================================
 */
@@ -376,7 +376,8 @@ html, body, [data-testid="stAppViewContainer"] {
 /* ================================================================
    BUTTONS — Styled Streamlit Buttons
    ================================================================ */
-.stButton > button {
+.stButton > button, 
+.stDownloadButton > button {
     border-radius: var(--border-radius-sm) !important;
     font-family: 'Inter', sans-serif !important;
     font-weight: 600 !important;
@@ -384,19 +385,56 @@ html, body, [data-testid="stAppViewContainer"] {
     padding: 0.5rem 1.2rem !important;
     transition: all var(--transition-fast) !important;
     letter-spacing: 0.01em !important;
-    border: none !important;
 }
 
-.stButton > button:hover {
+/* Default / Secondary buttons (e.g. Undo, Reset, Downloads) */
+.stButton > button[kind="secondary"],
+.stButton > button[data-testid="stBaseButton-secondary"],
+.stDownloadButton > button {
+    background-color: #F1F5F9 !important;
+    color: #0F172A !important;
+    border: 1px solid #CBD5E1 !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+.stButton > button[kind="secondary"]:hover,
+.stButton > button[data-testid="stBaseButton-secondary"]:hover,
+.stDownloadButton > button:hover {
+    background-color: #E2E8F0 !important;
+    border-color: var(--primary-blue) !important;
+    color: var(--primary-blue) !important;
     transform: translateY(-1px) !important;
     box-shadow: var(--shadow-md) !important;
 }
 
+/* Primary buttons */
 .stButton > button[kind="primary"],
 .stButton > button[data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%) !important;
     color: white !important;
+    border: none !important;
+    box-shadow: var(--shadow-sm) !important;
 }
+
+.stButton > button[kind="primary"]:hover,
+.stButton > button[data-testid="stBaseButton-primary"]:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+/* Disabled buttons styling */
+.stButton > button:disabled,
+.stDownloadButton > button:disabled,
+.stButton > button[disabled],
+.stDownloadButton > button[disabled] {
+    background-color: #E2E8F0 !important;
+    color: #94A3B8 !important;
+    border: 1px solid #E2E8F0 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
 
 /* ================================================================
    DATAFRAME / TABLE STYLING

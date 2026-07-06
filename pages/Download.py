@@ -19,6 +19,17 @@ def render_download():
         unsafe_allow_html=True,
     )
     if st.session_state.get("original_df") is None:
-        st.warning("⚠️ Please upload a dataset first.")
+        st.markdown(
+            """
+            <div class="content-card animate-in">
+                <div class="empty-state">
+                    <div class="empty-icon">⬇️</div>
+                    <h3>No Dataset Loaded</h3>
+                    <p>Upload a CSV or Excel file first to download cleaned files here.</p>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     else:
         st.info("⬇️ Download options will be implemented in the next step.")
