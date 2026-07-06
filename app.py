@@ -1,5 +1,5 @@
 """
-Data Cleaning Studio — Main Application Entry Point
+Data Pilot — Main Application Entry Point
 =====================================================
 A professional data cleaning and analysis dashboard built with Streamlit.
 Handles page configuration, sidebar navigation, CSS injection, and page routing.
@@ -20,12 +20,12 @@ if PROJECT_ROOT not in sys.path:
 # Page configuration — MUST be the first Streamlit command
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Data Cleaning Studio",
+    page_title="Data Pilot",
     page_icon="🧹",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        "About": "Data Cleaning Studio — A professional data cleaning & analysis tool.",
+        "About": "Data Pilot — A professional data cleaning & analysis tool.",
     },
 )
 
@@ -73,8 +73,8 @@ NAV_ITEMS = {
     "main": [
         ("🏠  Dashboard",       "Dashboard"),
         ("📂  Upload Dataset",  "Upload"),
-        ("📊  Data Analysis",   "Analysis"),
         ("🧹  Clean Dataset",   "Cleaning"),
+        ("📊  Data Analysis",   "Analysis"),
         ("🔄  Before vs After", "BeforeAfter"),
     ],
     "output": [
@@ -100,7 +100,7 @@ def render_sidebar():
                     font-weight: 700;
                     color: #F8FAFC;
                     letter-spacing: -0.02em;
-                ">Data Cleaning Studio</div>
+                ">Data Pilot</div>
                 <div style="
                     font-size: 0.7rem;
                     color: #64748B;
@@ -141,17 +141,20 @@ def render_sidebar():
         current_label = page_to_label.get(current_page, all_labels[0])
         current_index = all_labels.index(current_label) if current_label in all_labels else 0
 
+        # Define callback to update state immediately before the next rerun
+        def on_nav_change():
+            selected = st.session_state["nav_radio"]
+            st.session_state["current_page"] = label_to_page[selected]
+
         # Radio navigation
-        selected_label = st.radio(
+        st.radio(
             "Navigate",
             options=all_labels,
             index=current_index,
             key="nav_radio",
+            on_change=on_nav_change,
             label_visibility="collapsed",
         )
-
-        # Update current page based on selection
-        st.session_state["current_page"] = label_to_page[selected_label]
 
         st.markdown("---")
 
@@ -242,7 +245,7 @@ def render_sidebar():
                 letter-spacing: 0.02em;
                 line-height: 1.5;
             ">
-                Data Cleaning Studio v1.0<br>
+                Data Pilot v1.0<br>
                 Built for Portfolio · 2025
             </div>
             """,
