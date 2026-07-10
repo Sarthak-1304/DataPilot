@@ -395,7 +395,8 @@ def calculate_quality_score(df: pd.DataFrame) -> dict:
 
     # --- 2. Uniqueness Deduction (up to 20 pts) ---
     dup_ratio = df.duplicated().sum() / n_rows if n_rows > 0 else 0
-    uniqueness_deduction = min(20.0, dup_ratio * 50)  # 40% duplicates results in full 20 pts deduction
+    # Base deduction of 5.0 for having any duplicates, plus scale on ratio
+    uniqueness_deduction = min(20.0, (dup_ratio * 120) + (5.0 if dup_ratio > 0 else 0.0))
     uniqueness_score = 20.0 - uniqueness_deduction
 
     # --- 3. Consistency Deduction (up to 20 pts) ---
@@ -429,11 +430,25 @@ def calculate_quality_score(df: pd.DataFrame) -> dict:
                 date_cols_as_str += 1
     date_deduct = date_cols_as_str * 2
 
-    consistency_deduction = min(20.0, mixed_deduct + dirty_numeric_deduct + date_deduct)
+    # - Casing/whitespace inconsistencies in text categories
+    casing_inconsistent_cols = 0
+    for col in df.select_dtypes(include="object").columns:
+        non_null_vals = df[col].dropna()
+        if len(non_null_vals) > 0:
+            try:
+                raw_unique = non_null_vals.astype(str).nunique()
+                clean_unique = non_null_vals.astype(str).str.lower().str.strip().nunique()
+                if raw_unique > clean_unique:
+                    casing_inconsistent_cols += 1
+            except Exception:
+                pass
+    casing_deduct = casing_inconsistent_cols * 3
+
+    consistency_deduction = min(20.0, mixed_deduct + dirty_numeric_deduct + date_deduct + casing_deduct)
     consistency_score = 20.0 - consistency_deduction
 
     # --- 4. Validity Deduction (up to 20 pts) ---
-    # - Outliers (>5% of rows are outliers in a numeric column)
+    # - Outliers (>0.5% of rows are outliers in a numeric column)
     num_cols = df.select_dtypes(include="number").columns
     outlier_cols_count = 0
     if len(num_cols) > 0:
@@ -443,9 +458,21 @@ def calculate_quality_score(df: pd.DataFrame) -> dict:
             iqr = q3 - q1
             if iqr > 0:
                 outliers = ((df[col] < q1 - 1.5 * iqr) | (df[col] > q3 + 1.5 * iqr)).sum()
-                if outliers / n_rows > 0.05:
+                if outliers / len(df) > 0.005:
                     outlier_cols_count += 1
     outlier_deduct = outlier_cols_count * 3
+
+    # - Negative values in strictly positive fields (e.g. quantity, age, sales, price)
+    invalid_negative_cols = 0
+    for col in df.select_dtypes(include="number").columns:
+        col_lower = col.lower()
+        if any(kw in col_lower for kw in ["quantity", "age", "qty", "sales", "price"]):
+            non_null = df[col].dropna()
+            if len(non_null) > 0:
+                neg_ratio = (non_null < 0).sum() / len(non_null)
+                if 0.0 < neg_ratio < 0.25:
+                    invalid_negative_cols += 1
+    invalid_neg_deduct = invalid_negative_cols * 4
 
     # - Constant columns
     constant_cols = sum(1 for c in df.columns if df[c].nunique(dropna=True) <= 1)
@@ -455,7 +482,7 @@ def calculate_quality_score(df: pd.DataFrame) -> dict:
     empty_cols = sum(1 for c in df.columns if df[c].isnull().all())
     empty_deduct = empty_cols * 5
 
-    validity_deduction = min(20.0, outlier_deduct + constant_deduct + empty_deduct)
+    validity_deduction = min(20.0, outlier_deduct + constant_deduct + empty_deduct + invalid_neg_deduct)
     validity_score = 20.0 - validity_deduction
 
     # --- 5. Column Naming Deduction (up to 10 pts) ---
