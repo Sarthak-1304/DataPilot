@@ -96,7 +96,7 @@ def _render_quality_gauge(df):
     st.markdown(f"""
     <div class="content-card" style="text-align:center;">
         <h3>🎯 Data Quality Score</h3>
-        <div style="position:relative;width:140px;height:140px;margin:0.5rem auto;">
+        <div style="position:relative;width:110px;height:110px;margin:0.4rem auto;">
             <svg viewBox="0 0 36 36" style="transform:rotate(-90deg);width:100%;height:100%;">
                 <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831"
                       fill="none" stroke="#E2E8F0" stroke-width="3"/>
@@ -105,12 +105,12 @@ def _render_quality_gauge(df):
                       stroke-dasharray="{score}, 100" stroke-linecap="round"/>
             </svg>
             <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-                        font-size:1.8rem;font-weight:800;color:{color};">{score}</div>
+                        font-size:1.4rem;font-weight:800;color:{color};">{score}</div>
         </div>
-        <div style="font-size:0.85rem;font-weight:600;color:{color};margin-top:0.2rem;">
+        <div style="font-size:0.78rem;font-weight:600;color:{color};margin-top:0.15rem;">
             {label}
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:0.4rem;justify-content:center;margin-top:0.8rem;">
+        <div style="display:flex;flex-wrap:wrap;gap:0.4rem;justify-content:center;margin-top:0.6rem;">
             <span class="badge badge-green">Completeness {info['completeness']}/30</span>
             <span class="badge badge-blue">Uniqueness {info['uniqueness']}/20</span>
             <span class="badge badge-purple">Consistency {info['consistency']}/20</span>
@@ -197,10 +197,11 @@ def _render_history():
         time_text = s.get("timestamp", "")
 
         html_content = (
-            f'<div style="background:#F8FAFC; border-left:4px solid #3B82F6; '
-            f'border-radius:8px; padding:12px 16px; margin-bottom:10px;">'
-            f'<div style="font-weight:600; color:#0F172A;">{step_text}</div>'
-            f'<div style="font-size:13px; color:#64748B; margin-top:6px;">🕒 {time_text}</div>'
+            f'<div style="background:var(--bg-card); border-left:4px solid #3B82F6; '
+            f'border-radius:8px; padding:12px 16px; margin-bottom:10px; '
+            f'border-top:1px solid var(--border-color); border-right:1px solid var(--border-color); border-bottom:1px solid var(--border-color);">'
+            f'<div style="font-weight:600; color:var(--text-primary);">{step_text}</div>'
+            f'<div style="font-size:13px; color:var(--text-secondary); margin-top:6px;">🕒 {time_text}</div>'
             f'</div>'
         )
         st.markdown(html_content, unsafe_allow_html=True)

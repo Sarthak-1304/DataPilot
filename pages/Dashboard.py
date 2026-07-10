@@ -331,6 +331,6 @@ def _render_loaded_dashboard():
 def render_dashboard():
     """Render the Dashboard home page."""
     if st.session_state.get("original_df") is None:
-        _render_welcome()
-    else:
-        _render_loaded_dashboard()
+        st.info("📂 Please upload a dataset to view the dashboard.")
+        return
+    _render_loaded_dashboard()
