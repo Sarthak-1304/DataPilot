@@ -1,3 +1,4 @@
+import streamlit as st
 """
 Chart Generation Utility Functions
 ====================================
@@ -14,6 +15,33 @@ from plotly.subplots import make_subplots
 from typing import Optional, List
 
 # =============================================================================
+
+def _get_theme_styles():
+    try:
+        theme = st.session_state.get("theme", "dark")
+    except Exception:
+        theme = "dark"
+    if theme == "dark":
+        return {
+            "text_title": "#FFFFFF",
+            "text_body": "#94A3B8",
+            "text_muted": "#64748B",
+            "plot_bg": "#161525",
+            "grid_color": "#252438",
+            "border_color": "#252438",
+            "legend_bg": "rgba(22, 21, 37, 0.85)"
+        }
+    else:
+        return {
+            "text_title": "#0F172A",
+            "text_body": "#475569",
+            "text_muted": "#64748B",
+            "plot_bg": "#FAF9FD",
+            "grid_color": "#E2E8F0",
+            "border_color": "#E2E8F0",
+            "legend_bg": "rgba(255, 255, 255, 0.85)"
+        }
+
 # Shared theme / color constants
 # =============================================================================
 
@@ -50,38 +78,54 @@ LAYOUT_DEFAULTS = dict(
 
 def _apply_layout(fig, title: str = "", height: int = 460, show_legend: bool = True):
     """Apply premium consistent styling to a Plotly figure."""
+    styles = _get_theme_styles()
+    
+    layout_args = dict(
+        font=dict(family="Inter, sans-serif", size=13, color=styles["text_body"]),
+        plot_bgcolor=styles["plot_bg"],
+        paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=55, r=40, t=75, b=55),
+        hoverlabel=dict(
+            bgcolor="#1E293B" if styles["plot_bg"] != "#161525" else "#252438",
+            font_size=13,
+            font_family="Inter, sans-serif",
+            font_color="#F8FAFC",
+        ),
+        colorway=COLOR_PALETTE,
+    )
+    
     fig.update_layout(
         title=dict(
             text=f"<b>{title}</b>",
-            font=dict(size=17, color="#0F172A"),
+            font=dict(size=17, color=styles["text_title"]),
             x=0.02,
             y=0.97,
         ),
         height=height,
         showlegend=show_legend,
         legend=dict(
-            bgcolor="rgba(255,255,255,0.85)",
-            bordercolor="#E2E8F0",
+            bgcolor=styles["legend_bg"],
+            bordercolor=styles["border_color"],
             borderwidth=1,
-            font=dict(size=12, color="#475569"),
+            font=dict(size=12, color=styles["text_body"]),
         ),
-        **LAYOUT_DEFAULTS,
+        **layout_args,
     )
     fig.update_xaxes(
-        gridcolor="#F1F5F9",
+        gridcolor=styles["grid_color"],
         gridwidth=1,
-        zerolinecolor="#E2E8F0",
+        zerolinecolor=styles["border_color"],
         zerolinewidth=1.5,
-        tickfont=dict(color="#64748B", size=11),
-        title_font=dict(size=13, color="#475569", family="Inter, sans-serif"),
+        tickfont=dict(color=styles["text_muted"], size=11),
+        title_font=dict(size=13, color=styles["text_body"], family="Inter, sans-serif"),
     )
     fig.update_yaxes(
-        gridcolor="#F1F5F9",
+        gridcolor=styles["grid_color"],
         gridwidth=1,
-        zerolinecolor="#E2E8F0",
+        zerolinecolor=styles["border_color"],
         zerolinewidth=1.5,
-        tickfont=dict(color="#64748B", size=11),
-        title_font=dict(size=13, color="#475569", family="Inter, sans-serif"),
+        tickfont=dict(color=styles["text_muted"], size=11),
+        title_font=dict(size=13, color=styles["text_body"], family="Inter, sans-serif"),
     )
     return fig
 
@@ -123,7 +167,7 @@ def missing_value_bar(df: pd.DataFrame) -> go.Figure:
             marker=dict(color=colors, line=dict(color="rgba(0,0,0,0.08)", width=1)),
             text=[f"  {v}  ({v / len(df) * 100:.1f}%)" for v in missing.values],
             textposition="outside",
-            textfont=dict(color="#475569", size=12),
+            textfont=dict(color=_get_theme_styles()["text_body"], size=12),
             hovertemplate="<b>%{y}</b><br>Missing: %{x} values<extra></extra>",
         )
     )
@@ -145,7 +189,7 @@ def missing_value_heatmap(df: pd.DataFrame) -> go.Figure:
             z=null_matrix.values,
             x=null_matrix.columns.tolist(),
             y=list(range(len(null_matrix))),
-            colorscale=[[0, "#F1F5F9"], [1, "#EF4444"]],
+            colorscale=[[0, _get_theme_styles()["plot_bg"]], [1, "#EF4444"]],
             showscale=True,
             xgap=2,
             ygap=0.5,
@@ -311,7 +355,7 @@ def bar_chart(df: pd.DataFrame, column: str, top_n: int = 15) -> go.Figure:
             ),
             text=counts.values,
             textposition="outside",
-            textfont=dict(color="#475569", size=12),
+            textfont=dict(color=_get_theme_styles()["text_body"], size=12),
             hovertemplate="<b>%{x}</b><br>Count: %{y}<extra></extra>",
         )
     )
@@ -359,10 +403,11 @@ def correlation_heatmap(df: pd.DataFrame) -> go.Figure:
     corr = numeric_df.corr().round(3)
 
     # Custom divergent colorscale: blue → white → red
+    styles = _get_theme_styles()
     custom_scale = [
         [0.0, "#3730A3"],
         [0.25, "#818CF8"],
-        [0.5, "#FFFFFF"],
+        [0.5, styles["plot_bg"]],
         [0.75, "#FCA5A5"],
         [1.0, "#B91C1C"],
     ]
@@ -377,7 +422,7 @@ def correlation_heatmap(df: pd.DataFrame) -> go.Figure:
             zmax=1,
             text=corr.values.round(2),
             texttemplate="%{text}",
-            textfont=dict(size=13, color="#1E293B"),
+            textfont=dict(size=13, color=_get_theme_styles()["text_title"]),
             xgap=3,
             ygap=3,
             hovertemplate="<b>%{x}</b> vs <b>%{y}</b><br>r = %{z:.3f}<extra></extra>",
@@ -491,12 +536,13 @@ def numeric_overview(
         show_legend=False,
     )
 
-    # Subtle grids in subplots
-    fig.update_xaxes(showgrid=True, gridcolor="#F1F5F9", zeroline=False)
-    fig.update_yaxes(showgrid=True, gridcolor="#F1F5F9", zeroline=False)
+    # Subtle grids in subplots using theme styles
+    _styles = _get_theme_styles()
+    fig.update_xaxes(showgrid=True, gridcolor=_styles["grid_color"], zeroline=False)
+    fig.update_yaxes(showgrid=True, gridcolor=_styles["grid_color"], zeroline=False)
 
     # Style subplot titles
     for annotation in fig["layout"]["annotations"]:
-        annotation["font"] = dict(size=14, color="#334155")
+        annotation["font"] = dict(size=14, color=_get_theme_styles()["text_title"])
 
     return fig
