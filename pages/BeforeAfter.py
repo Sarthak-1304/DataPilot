@@ -7,6 +7,44 @@ Side-by-side comparison of original and cleaned datasets.
 import streamlit as st
 import pandas as pd
 import numpy as np
+
+def _apply_chart_theme(fig, title, height=260):
+    try:
+        theme = st.session_state.get("theme", "dark")
+    except Exception:
+        theme = "dark"
+        
+    if theme == "dark":
+        text_title = "#FFFFFF"
+        text_body = "#94A3B8"
+        grid_color = "#252438"
+        border_color = "#252438"
+        legend_bg = "rgba(22, 21, 37, 0.85)"
+    else:
+        text_title = "#0F172A"
+        text_body = "#475569"
+        grid_color = "#E2E8F0"
+        border_color = "#E2E8F0"
+        legend_bg = "rgba(255, 255, 255, 0.85)"
+        
+    fig.update_layout(
+        title=dict(text=title, font=dict(color=text_title, size=16)),
+        font=dict(color=text_body, family="Inter, sans-serif"),
+        height=height,
+        margin=dict(l=10, r=10, t=40, b=10),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        yaxis=dict(gridcolor=grid_color, tickfont=dict(color=text_body), title_font=dict(color=text_body)),
+        xaxis=dict(tickfont=dict(color=text_body), title_font=dict(color=text_body)),
+        legend=dict(
+            bgcolor=legend_bg,
+            bordercolor=border_color,
+            borderwidth=1,
+            font=dict(color=text_body)
+        )
+    )
+    return fig
+
 import io
 import plotly.graph_objects as go
 from utils.cleaner import calculate_quality_score
@@ -52,12 +90,12 @@ def render_impact_metric_card(icon, label, value, pct, desc, color_class):
         f"""
         <div class="metric-card {color_class} animate-in" style="margin-bottom: 10px;">
             <div style="display: flex; justify-content: space-between; align-items: start;">
-                <span style="font-size: 1.5rem;">{icon}</span>
+                <span style="font-size: 1.2rem;">{icon}</span>
                 <span class="badge badge-{color_class}">{pct:.0f}%</span>
             </div>
-            <div class="metric-value" style="margin-top: 0.5rem; font-size: 1.6rem;">{value}</div>
-            <div class="metric-label" style="font-size: 0.78rem; font-weight: 600; color: var(--text-primary);">{label}</div>
-            <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.2rem;">{desc}</div>
+            <div class="metric-value" style="margin-top: 0.4rem; font-size: 1.2rem;">{value}</div>
+            <div class="metric-label" style="font-size: 0.72rem; font-weight: 600; color: var(--text-primary);">{label}</div>
+            <div style="font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.15rem;">{desc}</div>
         </div>
         """,
         unsafe_allow_html=True
@@ -100,11 +138,11 @@ def render_kpi_comparison_card(icon, label, orig_val, clean_val, direction="lowe
         f"""
         <div class="metric-card blue animate-in">
             <span class="metric-icon">{icon}</span>
-            <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">{label}</div>
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.5rem;">
-                <div style="font-size: 1.35rem; font-weight: 700; color: var(--text-secondary);">{orig_str}</div>
-                <div style="font-size: 1.1rem; color: var(--text-muted);">➔</div>
-                <div style="font-size: 1.6rem; font-weight: 800; color: var(--text-primary);">{clean_str}</div>
+            <div style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">{label}</div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.4rem;">
+                <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-secondary);">{orig_str}</div>
+                <div style="font-size: 0.95rem; color: var(--text-muted);">➔</div>
+                <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">{clean_str}</div>
             </div>
             <div style="margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
                 <span class="badge {delta_class}">{delta_text}</span>
@@ -168,7 +206,9 @@ def render_before_after():
         return
 
     original_df = st.session_state["original_df"]
-    cleaned_df = st.session_state.get("cleaned_df", original_df)
+    cleaned_df = st.session_state.get("cleaned_df")
+    if cleaned_df is None:
+        cleaned_df = original_df
     steps = st.session_state.get("cleaning_steps", [])
 
     # Initialize variables to avoid UnboundLocalErrors when no steps are applied yet
@@ -255,10 +295,10 @@ def render_before_after():
     with hero1:
         st.markdown(
             f"""
-            <div class="content-card animate-in" style="height: 100%; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem;">
-                <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Overall Cleaning Impact</div>
-                <div style="font-size: 3.5rem; font-weight: 800; color: #3B82F6; margin: 0.8rem 0; line-height: 1;">{impact_score}%</div>
-                <div class="badge badge-blue" style="font-size: 0.9rem; padding: 0.4rem 1rem;">{impact_label}</div>
+            <div class="content-card animate-in" style="height: 100%; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 1.5rem;">
+                <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Overall Cleaning Impact</div>
+                <div style="font-size: 2.5rem; font-weight: 800; color: #3B82F6; margin: 0.6rem 0; line-height: 1;">{impact_score}%</div>
+                <div class="badge badge-blue" style="font-size: 0.8rem; padding: 0.3rem 0.9rem;">{impact_label}</div>
             </div>
             """,
             unsafe_allow_html=True
@@ -281,21 +321,21 @@ def render_before_after():
 
         st.markdown(
             f"""
-            <div style="display: flex; align-items: center; justify-content: space-around; padding: 1rem 0;">
+            <div style="display: flex; align-items: center; justify-content: space-around; padding: 0.8rem 0;">
                 <div style="text-align: center;">
-                    <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">Before Quality</div>
-                    <div style="font-size: 2.2rem; font-weight: 800; color: {c_orig_color};">{score_orig}%</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">{score_info_orig['label']}</div>
+                    <div style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">Before Quality</div>
+                    <div style="font-size: 1.8rem; font-weight: 800; color: {c_orig_color};">{score_orig}%</div>
+                    <div style="font-size: 0.68rem; color: var(--text-muted); font-weight: 500;">{score_info_orig['label']}</div>
                 </div>
-                <div style="font-size: 2rem; color: var(--text-muted);">➔</div>
+                <div style="font-size: 1.5rem; color: var(--text-muted);">➔</div>
                 <div style="text-align: center;">
-                    <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">After Quality</div>
-                    <div style="font-size: 2.5rem; font-weight: 800; color: {c_clean_color};">{score_clean}%</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">{score_info_clean['label']}</div>
+                    <div style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">After Quality</div>
+                    <div style="font-size: 2rem; font-weight: 800; color: {c_clean_color};">{score_clean}%</div>
+                    <div style="font-size: 0.68rem; color: var(--text-muted); font-weight: 500;">{score_info_clean['label']}</div>
                 </div>
                 <div style="text-align: center;">
-                    <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">Improvement</div>
-                    <div style="font-size: 2.2rem; font-weight: 800; color: #10B981;"><span class="badge {diff_class}" style="font-size: 1.5rem; padding: 0.2rem 0.8rem;">{diff_sign}{diff_score}%</span></div>
+                    <div style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">Improvement</div>
+                    <div style="font-size: 1.8rem; font-weight: 800; color: #10B981;"><span class="badge {diff_class}" style="font-size: 1.2rem; padding: 0.2rem 0.7rem;">{diff_sign}{diff_score}%</span></div>
                 </div>
             </div>
             """,
@@ -369,21 +409,21 @@ def render_before_after():
             f"""
             <div class="content-card animate-in" style="height: 100%;">
                 <h3>⏱️ Cleaning Efficiency</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; font-size: 0.82rem; color: var(--text-secondary);">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; font-size: 0.78rem; color: var(--text-secondary);">
                     <div>
-                        <div style="font-weight: 600; color: var(--text-primary); font-size: 1.15rem;">{max(0, rows_orig - rows_clean):,}</div>
+                        <div style="font-weight: 600; color: var(--text-primary); font-size: 1rem;">{max(0, rows_orig - rows_clean):,}</div>
                         <div>Rows Removed</div>
                     </div>
                     <div>
-                        <div style="font-weight: 600; color: var(--text-primary); font-size: 1.15rem;">{rows_updated:,}</div>
+                        <div style="font-weight: 600; color: var(--text-primary); font-size: 1rem;">{rows_updated:,}</div>
                         <div>Rows Updated</div>
                     </div>
                     <div>
-                        <div style="font-weight: 600; color: var(--text-primary); font-size: 1.15rem;">{cells_modified:,}</div>
+                        <div style="font-weight: 600; color: var(--text-primary); font-size: 1rem;">{cells_modified:,}</div>
                         <div>Cells Modified</div>
                     </div>
                     <div>
-                        <div style="font-weight: 600; color: var(--text-primary); font-size: 1.15rem;">{len(steps):,}</div>
+                        <div style="font-weight: 600; color: var(--text-primary); font-size: 1rem;">{len(steps):,}</div>
                         <div>Operations Applied</div>
                     </div>
                 </div>
@@ -410,7 +450,7 @@ def render_before_after():
             <div class="content-card animate-in" style="height: 100%;">
                 <h3>⚙️ Dataset Readiness Score</h3>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-                    <span style="font-size: 1.6rem; font-weight: 800; color: var(--text-primary);">{readiness_score}%</span>
+                    <span style="font-size: 1.3rem; font-weight: 800; color: var(--text-primary);">{readiness_score}%</span>
                     <span class="badge badge-green">{readiness_lbl}</span>
                 </div>
                 <div style="font-size: 0.76rem; color: var(--text-secondary); line-height: 1.35; padding-top: 0.2rem;">
@@ -594,18 +634,8 @@ def render_before_after():
                 go.Bar(name='Original', x=c_names, y=y_orig, marker_color='#F59E0B'),
                 go.Bar(name='Cleaned', x=c_names, y=y_clean, marker_color='#10B981')
             ])
-            fig_miss.update_layout(
-                title=dict(text="Missing Values per Column", font=dict(color="#0F172A", size=16)),
-                font=dict(color="#334155", family="Inter, sans-serif"),
-                barmode='group',
-                height=260,
-                margin=dict(l=10, r=10, t=40, b=10),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                yaxis=dict(gridcolor='#E2E8F0', tickfont=dict(color="#475569")),
-                xaxis=dict(tickfont=dict(color="#475569")),
-                legend=dict(font=dict(color="#475569"))
-            )
+            fig_miss.update_layout(barmode='group')
+            _apply_chart_theme(fig_miss, "Missing Values per Column", 260)
             st.plotly_chart(fig_miss, use_container_width=True, config={'displayModeBar': False})
             
         with c_right:
@@ -614,18 +644,8 @@ def render_before_after():
                 go.Bar(name='Original', x=['Duplicates', 'Outliers'], y=[dup_orig, out_orig], marker_color='#EF4444'),
                 go.Bar(name='Cleaned', x=['Duplicates', 'Outliers'], y=[dup_clean, out_clean], marker_color='#3B82F6')
             ])
-            dup_chart.update_layout(
-                title=dict(text="Duplicates & Outliers Count", font=dict(color="#0F172A", size=16)),
-                font=dict(color="#334155", family="Inter, sans-serif"),
-                barmode='group',
-                height=260,
-                margin=dict(l=10, r=10, t=40, b=10),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                yaxis=dict(gridcolor='#E2E8F0', tickfont=dict(color="#475569")),
-                xaxis=dict(tickfont=dict(color="#475569")),
-                legend=dict(font=dict(color="#475569"))
-            )
+            dup_chart.update_layout(barmode='group')
+            _apply_chart_theme(dup_chart, "Duplicates & Outliers Count", 260)
             st.plotly_chart(dup_chart, use_container_width=True, config={'displayModeBar': False})
 
     with tab_dist:
@@ -646,19 +666,8 @@ def render_before_after():
                 fig_hist.add_trace(go.Histogram(x=original_df[selected_num_col], name='Original', marker_color='#94A3B8', opacity=0.6))
                 if selected_num_col in cleaned_df.columns:
                     fig_hist.add_trace(go.Histogram(x=cleaned_df[selected_num_col], name='Cleaned', marker_color='#3B82F6', opacity=0.7))
-                fig_hist.update_layout(
-                    title=dict(text=f"Value Distribution: {selected_num_col}", font=dict(color="#0F172A", size=16)),
-                    font=dict(color="#334155", family="Inter, sans-serif"),
-                    barmode='overlay',
-                    height=280,
-                    showlegend=True,
-                    margin=dict(l=10, r=10, t=40, b=10),
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    yaxis=dict(gridcolor='#E2E8F0', tickfont=dict(color="#475569"), title_font=dict(color="#475569")),
-                    xaxis=dict(tickfont=dict(color="#475569"), title_font=dict(color="#475569")),
-                    legend=dict(font=dict(color="#475569"))
-                )
+                fig_hist.update_layout(barmode='overlay', showlegend=True)
+                _apply_chart_theme(fig_hist, f"Value Distribution: {selected_num_col}", 280)
                 st.plotly_chart(fig_hist, use_container_width=True, config={'displayModeBar': False})
                 
             with col_d2:
@@ -694,18 +703,8 @@ def render_before_after():
             if selected_box_col in cleaned_df.columns:
                 fig_box.add_trace(go.Box(y=cleaned_df[selected_box_col], name='Cleaned', marker_color='#10B981'))
             
-            fig_box.update_layout(
-                title=dict(text=f"Outlier Dispersion: {selected_box_col}", font=dict(color="#0F172A", size=16)),
-                font=dict(color="#334155", family="Inter, sans-serif"),
-                height=280,
-                showlegend=True,
-                margin=dict(l=10, r=10, t=40, b=10),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                yaxis=dict(gridcolor='#E2E8F0', tickfont=dict(color="#475569"), title_font=dict(color="#475569")),
-                xaxis=dict(tickfont=dict(color="#475569"), title_font=dict(color="#475569")),
-                legend=dict(font=dict(color="#475569"))
-            )
+            fig_box.update_layout(showlegend=True)
+            _apply_chart_theme(fig_box, f"Outlier Dispersion: {selected_box_col}", 280)
             st.plotly_chart(fig_box, use_container_width=True, config={'displayModeBar': False})
 
     with tab_text:
@@ -732,7 +731,7 @@ def render_before_after():
         if not text_examples:
             st.markdown(
                 """
-                <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 8px; padding: 1.2rem; text-align: center; margin: 1rem 0; color: #475569; font-size: 0.9rem;">
+                <div style="background-color: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 1.2rem; text-align: center; margin: 1rem 0; color: var(--text-primary); font-size: 0.9rem;">
                     💡 No text standardization examples found in the modifications.
                 </div>
                 """,
@@ -781,11 +780,11 @@ def render_before_after():
     if score_clean >= 90:
         st.markdown(
             """
-            <div style="background-color: #ECFDF5; border: 1px solid #10B981; border-radius: 8px; padding: 1.2rem; margin-bottom: 1.5rem;">
-                <h4 style="color: #065F46; margin: 0 0 0.4rem 0; font-weight: 700; border: none; padding: 0; display: flex; align-items: center; gap: 0.5rem;">
+            <div style="background-color: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 1.2rem; margin-bottom: 1.5rem;">
+                <h4 style="color: #10B981; margin: 0 0 0.4rem 0; font-weight: 700; border: none; padding: 0; display: flex; align-items: center; gap: 0.5rem;">
                     <span>✅</span> Dataset Successfully Cleaned
                 </h4>
-                <p style="color: #047857; margin: 0; font-size: 0.9rem; line-height: 1.5;">
+                <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem; line-height: 1.5;">
                     The dataset is fully prepared and optimized. Ready for <b>Analysis, Dashboard, AI Insights,</b> and <b>Export</b>.
                 </p>
             </div>
@@ -795,11 +794,11 @@ def render_before_after():
     else:
         st.markdown(
             """
-            <div style="background-color: #FFFBEB; border: 1px solid #F59E0B; border-radius: 8px; padding: 1.2rem; margin-bottom: 1.5rem;">
-                <h4 style="color: #92400E; margin: 0 0 0.4rem 0; font-weight: 700; border: none; padding: 0; display: flex; align-items: center; gap: 0.5rem;">
+            <div style="background-color: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 1.2rem; margin-bottom: 1.5rem;">
+                <h4 style="color: #F59E0B; margin: 0 0 0.4rem 0; font-weight: 700; border: none; padding: 0; display: flex; align-items: center; gap: 0.5rem;">
                     <span>⚠️</span> Quality Issues Remaining
                 </h4>
-                <p style="color: #78350F; margin: 0; font-size: 0.9rem; line-height: 1.5;">
+                <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem; line-height: 1.5;">
                     Dataset still contains quality issues. We recommend checking for additional outliers, missing fields, or datatype anomalies before final export.
                 </p>
             </div>
