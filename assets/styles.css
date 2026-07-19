@@ -246,11 +246,13 @@ html, body, [data-testid="stAppViewContainer"] {
     padding: 1.5rem;
     margin-bottom: 1rem;
     box-shadow: var(--shadow-sm);
-    transition: box-shadow var(--transition-base);
+    transition: all var(--transition-base);
 }
 
 .content-card:hover {
-    box-shadow: var(--shadow-md);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-blue) !important;
 }
 
 .content-card h3 {
@@ -260,6 +262,15 @@ html, body, [data-testid="stAppViewContainer"] {
     margin-bottom: 1rem;
     padding-bottom: 0.6rem;
     border-bottom: 1px solid var(--border-color);
+}
+
+/* Align selectbox height with buttons inside project catalog cards */
+.content-card div[data-testid="stSelectbox"] div[data-baseweb="select"] {
+    min-height: 38px !important;
+    height: 38px !important;
+}
+.content-card div[data-testid="stSelectbox"] {
+    margin-top: 0px !important;
 }
 
 /* ================================================================
@@ -626,5 +637,51 @@ html, body, [data-testid="stAppViewContainer"] {
 [data-testid="stMain"] [data-testid="stTooltipIcon"] {
     opacity: 0.8 !important;
 }
+
+/* ================================================================
+   PERSISTENCE & SAVE INDICATOR STYLES
+   ================================================================ */
+:root {
+    --mockup-card-bg: #F8FAFC;
+}
+
+[data-theme="dark"] {
+    --mockup-card-bg: #1E293B;
+}
+
+@keyframes pulse-glow {
+    0%, 100% { opacity: 1; filter: drop-shadow(0 0 2px rgba(245, 158, 11, 0.4)); }
+    50% { opacity: 0.6; filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.8)); }
+}
+
+.saving-pulse {
+    animation: pulse-glow 1.2s infinite ease-in-out;
+    color: var(--warning-orange) !important;
+}
+
+.save-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+}
+
+/* Custom premium styles for section headers in the main area */
+[data-testid="stMain"] h3 {
+    font-size: 1.15rem !important;
+    font-weight: 700 !important;
+    margin-top: 1.8rem !important;
+    margin-bottom: 0.8rem !important;
+    color: var(--text-primary) !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
 
 

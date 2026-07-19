@@ -406,14 +406,24 @@ def render_upload():
                 and st.session_state.get("_selected_sheet") != st.session_state.get("_prev_sheet")
             ):
                 _save_uploaded_file(uploaded_file)
-                set_state("original_df", df)
-                set_state("cleaned_df", df.copy())
-                set_state("file_name", uploaded_file.name)
-                set_state("file_size", len(uploaded_file.getbuffer()))
-                set_state("upload_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                set_state("quality_score", calculate_quality_score(df))
-                set_state("cleaning_history", [])
-                set_state("cleaning_steps", [])
+                
+                # Check if a project is loaded; if not, create one automatically
+                if not st.session_state.get("project_id"):
+                    from utils.sync_manager import create_new_project_from_upload
+                    create_new_project_from_upload(uploaded_file, df)
+                else:
+                    set_state("original_df", df)
+                    set_state("cleaned_df", df.copy())
+                    set_state("file_name", uploaded_file.name)
+                    set_state("file_size", len(uploaded_file.getbuffer()))
+                    set_state("upload_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                    set_state("quality_score", calculate_quality_score(df))
+                    set_state("cleaning_history", [])
+                    set_state("cleaning_steps", [])
+                    
+                    from utils.sync_manager import save_project
+                    save_project(st.session_state["project_id"])
+                    
                 set_state("_prev_sheet", st.session_state.get("_selected_sheet"))
 
                 sheet_info = ""
@@ -425,6 +435,7 @@ def render_upload():
                     f"{df.shape[0]:,} rows × {df.shape[1]:,} columns",
                 )
                 st.toast(f"✅ **{uploaded_file.name}** loaded successfully!", icon="🎉")
+                st.rerun()
 
             # ---- Render all preview sections ----
             st.markdown("---")

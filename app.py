@@ -37,6 +37,8 @@ import pages.BeforeAfter as p_beforeafter
 import pages.Reports as p_reports
 import pages.Download as p_download
 import pages.Settings as p_settings
+import pages.Projects as p_projects
+import pages.AIWorkspace as p_aiworkspace
 
 # Force reload modules so editing pages takes effect immediately
 importlib.reload(p_dashboard)
@@ -47,6 +49,8 @@ importlib.reload(p_beforeafter)
 importlib.reload(p_reports)
 importlib.reload(p_download)
 importlib.reload(p_settings)
+importlib.reload(p_projects)
+importlib.reload(p_aiworkspace)
 
 from pages.Dashboard import render_dashboard
 from pages.Upload import render_upload
@@ -56,11 +60,55 @@ from pages.BeforeAfter import render_before_after
 from pages.Reports import render_reports
 from pages.Download import render_download
 from pages.Settings import render_settings
+from pages.Projects import render_projects
+from pages.AIWorkspace import render_ai_workspace
 
 # ---------------------------------------------------------------------------
 # Initialize session state
 # ---------------------------------------------------------------------------
 initialize_session_state()
+
+# ---------------------------------------------------------------------------
+# Recovery & Session restore Dialogs
+# ---------------------------------------------------------------------------
+@st.dialog("⚠️ Recover Unsaved Work?")
+def render_crash_recovery_dialog(p_id, recovered_time):
+    st.markdown(f"The application closed unexpectedly. We found an auto-backup from recently (**{recovered_time}**).")
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Recover", type="primary", key="crash_recover_btn", use_container_width=True):
+            from utils.sync_manager import load_project, recover_backup
+            if load_project(p_id):
+                recover_backup(p_id)
+            if "show_crash_recovery" in st.session_state:
+                del st.session_state["show_crash_recovery"]
+            st.rerun()
+    with c2:
+        if st.button("Discard", type="secondary", key="crash_discard_btn", use_container_width=True):
+            from utils.sync_manager import set_active_session
+            set_active_session(None)
+            if "show_crash_recovery" in st.session_state:
+                del st.session_state["show_crash_recovery"]
+            st.rerun()
+
+@st.dialog("📁 Continue Previous Session?")
+def render_restore_dialog(p_id, p_name, last_saved_time):
+    st.markdown(f"Would you like to resume your work on **{p_name}** (Last saved {last_saved_time})?")
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Continue", type="primary", key="restore_continue_btn", use_container_width=True):
+            from utils.sync_manager import load_project
+            load_project(p_id)
+            if "show_restore_modal" in st.session_state:
+                del st.session_state["show_restore_modal"]
+            st.rerun()
+    with c2:
+        if st.button("New Project", type="secondary", key="restore_new_btn", use_container_width=True):
+            from utils.sync_manager import set_active_session
+            set_active_session(None)
+            if "show_restore_modal" in st.session_state:
+                del st.session_state["show_restore_modal"]
+            st.rerun()
 
 
 # =============================================================================
@@ -631,7 +679,6 @@ def render_landing_page():
 
     if uploaded_file is not None:
         import pandas as pd
-        from utils.helpers import add_activity
 
         try:
             if uploaded_file.name.endswith(".csv"):
@@ -639,15 +686,8 @@ def render_landing_page():
             else:
                 df = pd.read_excel(uploaded_file)
 
-            st.session_state["original_df"] = df
-            st.session_state["cleaned_df"] = None
-            st.session_state["file_name"] = uploaded_file.name
-            st.session_state["file_size"] = uploaded_file.size
-            st.session_state["cleaning_steps"] = []
-            st.session_state["cleaning_history"] = []
-            st.session_state["current_page"] = "Dashboard"
-
-            add_activity("Dataset Uploaded", f"{uploaded_file.name} ({df.shape[0]} rows × {df.shape[1]} cols)")
+            from utils.sync_manager import create_new_project_from_upload
+            create_new_project_from_upload(uploaded_file, df)
             st.rerun()
         except Exception as e:
             st.error(f"❌ Failed to read file: {e}")
@@ -682,6 +722,64 @@ def render_landing_page():
             """)
 
     render_html("<div style='height:2.5rem;'></div>")
+
+    # ── 4.5. QUICK START TEMPLATES SECTION ──
+    from utils.sync_manager import list_projects, load_project
+    try:
+        all_projects = list_projects()
+        templates = [p for p in all_projects if p.get("is_template", False)]
+    except Exception:
+        templates = []
+
+    if templates:
+        render_html("""
+            <div style="margin-top: 1rem; margin-bottom: 1.2rem;">
+                <h2 style="font-size: 1.6rem; font-weight: 800; color: var(--text-primary); margin: 0; line-height: 1.2; letter-spacing: -0.02em; display: flex; align-items: center; gap: 0.5rem; border: none; padding: 0;">
+                    ⚡ Quick Start Templates
+                </h2>
+                <p style="font-size: 0.88rem; color: var(--text-secondary); margin: 0.3rem 0 1rem 0;">
+                    Explore Data Pilot's features instantly with our preloaded templates.
+                </p>
+            </div>
+        """)
+        temp_cols = st.columns(4, gap="medium")
+        for col, temp in zip(temp_cols, templates):
+            p_id = temp["id"]
+            p_name = temp["name"]
+            
+            # Curated details for templates
+            details = {
+                "sales_template": ("💰", "Analyze sales performance, outlier transactions, and discount impacts.", "#8B5CF6"),
+                "hr_template": ("👥", "Explore employee salaries, department segments, roles, and job statuses.", "#3B82F6"),
+                "customer_template": ("🎯", "Review spending behaviors, customer demographics, and ages.", "#10B981"),
+                "financial_template": ("📉", "Audit transaction records, categorizations, and outlier charges.", "#EF4444")
+            }
+            icon, desc, accent = details.get(p_id, ("📊", "Preloaded sample dataset to clean and analyze.", "#6366F1"))
+            
+            with col:
+                render_html(f"""
+                    <div class="feature-card" style="margin-bottom: 0.5rem; min-height: 185px; border-top: 3px solid {accent} !important;">
+                        <div style="
+                            background: {accent}15;
+                            border-radius: 10px;
+                            width: 38px;
+                            height: 38px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 1.25rem;
+                            margin-bottom: 0.8rem;
+                        ">{icon}</div>
+                        <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.3rem;">{p_name}</div>
+                        <div style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.5;">{desc}</div>
+                    </div>
+                """)
+                if st.button("🚀 Launch", key=f"launch_temp_{p_id}", use_container_width=True):
+                    if load_project(p_id):
+                        st.session_state["current_page"] = "Dashboard"
+                        st.rerun()
+
+        render_html("<div style='height:2.5rem;'></div>")
 
     # ── 5. BOTTOM GRID (Why Data Pilot? vs Your Data Journey) ──
     col_bottom_left, col_bottom_right = st.columns([1, 1.1], gap="large")
@@ -881,11 +979,13 @@ def render_landing_page():
 # =============================================================================
 
 NAV_ITEMS = [
-    ("📋  Dataset Overview",     "Dashboard"),
-    ("🧹  Data Cleaning",        "Cleaning"),
-    ("📊  Before vs After",      "BeforeAfter"),
-    ("📈  Analysis",             "Analysis"),
-    ("📑  Reports",              "Reports"),
+    ("📊 Dataset Overview",     "Dashboard"),
+    ("🧹 Data Cleaning",        "Cleaning"),
+    ("🔄 Before vs After",      "BeforeAfter"),
+    ("📈 Analysis",             "Analysis"),
+    ("🤖 AI Workspace",          "AIWorkspace"),
+    ("📋 Reports",              "Reports"),
+    ("📂 Projects & Timeline",  "Projects"),
 ]
 
 
@@ -1064,6 +1164,8 @@ PAGE_MAP = {
     "Reports":     render_reports,
     "Download":    render_download,
     "Settings":    render_settings,
+    "Projects":    render_projects,
+    "AIWorkspace": render_ai_workspace,
 }
 
 
@@ -1098,6 +1200,14 @@ def main():
         if "landing_uploader" in st.session_state:
             del st.session_state["landing_uploader"]
         
+        try:
+            st.query_params.clear()
+        except AttributeError:
+            st.experimental_set_query_params()
+        st.rerun()
+
+    if action == "projects":
+        st.session_state["current_page"] = "Projects"
         try:
             st.query_params.clear()
         except AttributeError:
@@ -1345,7 +1455,49 @@ def main():
     """, unsafe_allow_html=True)
 
     # Render global top bar (constant navbar)
-    st.markdown("""
+    project_info_html = ""
+    if st.session_state.get("project_id"):
+        p_name = st.session_state.get("project_name", "Unnamed Project")
+        status = st.session_state.get("save_status", "saved")
+        save_time = st.session_state.get("last_saved_time", "")
+        
+        if status == "saving":
+            status_pill = '<span class="save-status-badge saving-pulse" style="border-color: #F59E0B; color: #F59E0B; background: rgba(245, 158, 11, 0.05);">&#9203; Saving...</span>'
+        elif status == "failed":
+            status_pill = '<span class="save-status-badge" style="border-color: #EF4444; color: #EF4444; background: rgba(239, 68, 68, 0.05);">⚠️ Save failed</span>'
+        else:
+            status_pill = '<span class="save-status-badge" style="border-color: #10B981; color: #10B981; background: rgba(16, 185, 129, 0.05);">&#9989; Saved</span>'
+            
+        time_str = f'<span style="color: #94A3B8; font-size: 0.72rem; font-weight: 500;">{save_time}</span>' if save_time else ""
+        
+        project_info_html = f"""
+        <div style="display: flex; align-items: center; gap: 0.6rem; border-right: 1px solid #1F1E2E; padding-right: 1rem; margin-right: 0.4rem;">
+            <span style="color: white; font-weight: 600; font-size: 0.8rem; display: flex; align-items: center; gap: 0.3rem;">📁 {p_name}</span>
+            {status_pill}
+            {time_str}
+        </div>
+        """
+    else:
+        project_info_html = """
+        <div style="display: flex; align-items: center; gap: 0.6rem; border-right: 1px solid #1F1E2E; padding-right: 1rem; margin-right: 0.4rem;">
+            <span class="save-status-badge" style="border-color: #64748B; color: #94A3B8; opacity: 0.6; background: rgba(100, 116, 139, 0.05);">⚪ No project loaded</span>
+        </div>
+        """
+
+    gemini_status_html = ""
+    try:
+        from ai.gemini_manager import is_gemini_configured
+        if is_gemini_configured():
+            gemini_status_html = """
+            <div style="display: flex; align-items: center; gap: 0.4rem; border-right: 1px solid #1F1E2E; padding-right: 1rem; margin-right: 0.4rem;">
+                <span class="save-status-badge" style="border-color: #10B981; color: #10B981; background: rgba(16, 185, 129, 0.05); font-weight: 600;">🤖 Gemini Connected</span>
+                <span style="color: #94A3B8; font-size: 0.72rem; font-weight: 500;">Model: Gemini 3.5 Flash</span>
+            </div>
+            """
+    except Exception:
+        pass
+
+    render_html(f"""
         <div style="
             display: flex;
             justify-content: space-between;
@@ -1374,11 +1526,14 @@ def main():
                 ">📊</div>
                 <span style="color: white; font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em;">Data Pilot</span>
             </a>
-            <div style="display: flex; align-items: center; gap: 1.2rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                {gemini_status_html}
+                {project_info_html}
                 <details class="dropdown">
                     <summary class="dropbtn">&#8942; Menu</summary>
                     <div class="dropdown-content">
                         <a href="/?action=reset" target="_self">&#127968; Home / Reset</a>
+                        <a href="/?action=projects" target="_self">📁 Projects & Workspace</a>
                         <a href="#about-modal">&#8505;&#65039; About</a>
                     </div>
                 </details>
@@ -1400,7 +1555,47 @@ def main():
                 </div>
             </div>
         </div>
-    """, unsafe_allow_html=True)
+    """)
+
+    # Check if we need to show the recovery/restore modals
+    if st.session_state.get("show_crash_recovery"):
+        p_id = st.session_state["show_crash_recovery"]
+        from utils.sync_manager import PROJECTS_DIR
+        
+        backup_meta_path = os.path.join(PROJECTS_DIR, p_id, "backups", "backup_metadata.json")
+        recovered_time = "recently"
+        if os.path.exists(backup_meta_path):
+            try:
+                with open(backup_meta_path, "r", encoding="utf-8") as f:
+                    b_meta = json.load(f)
+                    recovered_time = b_meta.get("timestamp", "")
+                    if recovered_time:
+                        try:
+                            dt = datetime.datetime.strptime(recovered_time, "%Y-%m-%d %H:%M:%S")
+                            recovered_time = dt.strftime("%I:%M %p")
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+        render_crash_recovery_dialog(p_id, recovered_time)
+
+    elif st.session_state.get("show_restore_modal"):
+        p_id = st.session_state["show_restore_modal"]
+        from utils.sync_manager import get_project_metadata
+        
+        meta = get_project_metadata(p_id)
+        p_name = "Unnamed Project"
+        last_saved_time = "Unknown"
+        if meta:
+            p_name = meta.get("name", "Unnamed Project")
+            last_saved_time = meta.get("last_saved", "")
+            if last_saved_time:
+                try:
+                    dt = datetime.datetime.strptime(last_saved_time, "%Y-%m-%d %H:%M:%S")
+                    last_saved_time = dt.strftime("%I:%M %p")
+                except Exception:
+                    pass
+        render_restore_dialog(p_id, p_name, last_saved_time)
 
     # If no dataset is loaded, show the landing page
     if st.session_state.get("original_df") is None:
@@ -1465,6 +1660,92 @@ def main():
         page_renderer()
     else:
         st.error(f"Page '{current_page}' not found.")
+
+    # Keyboard shortcuts handler
+    render_shortcuts_handler()
+
+    # Autosave loop
+    if st.session_state.get("project_id"):
+        from utils.sync_manager import autosave
+        autosave()
+
+
+def render_shortcuts_handler():
+    """Inject JavaScript to intercept keyboard shortcuts Ctrl+S and Ctrl+Shift+S."""
+    import streamlit as st
+    from datetime import datetime
+    
+    btn_save = st.button("Force Save Project", key="btn_shortcut_save", help="Internal use only")
+    btn_snapshot = st.button("Create Snapshot", key="btn_shortcut_snapshot", help="Internal use only")
+        
+    st.markdown("""
+        <style>
+        div.element-container:has(button[aria-label="Force Save Project"]),
+        div.element-container:has(button[aria-label="Create Snapshot"]) {
+            display: none !important;
+            height: 0px !important;
+            margin: 0px !important;
+            padding: 0px !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    if btn_save:
+        from utils.sync_manager import save_project
+        if st.session_state.get("project_id"):
+            st.session_state["save_status"] = "saving"
+            if save_project(st.session_state["project_id"]):
+                st.session_state["save_status"] = "saved"
+                st.session_state["last_saved_time"] = datetime.now().strftime("%I:%M %p")
+            else:
+                st.session_state["save_status"] = "failed"
+            st.rerun()
+            
+    if btn_snapshot:
+        from utils.sync_manager import save_project, PROJECTS_DIR
+        import json
+        import os
+        if st.session_state.get("project_id"):
+            p_id = st.session_state["project_id"]
+            if save_project(p_id, is_snapshot=True):
+                st.session_state["save_status"] = "saved"
+                st.session_state["last_saved_time"] = datetime.now().strftime("%I:%M %p")
+                st.toast("📸 Snapshot created successfully!")
+            else:
+                st.toast("❌ Snapshot creation failed!")
+            st.rerun()
+
+    js_code = """
+    <script>
+    const parentDoc = window.parent.document;
+    
+    if (window.parent._shortcutHandler) {
+        parentDoc.removeEventListener('keydown', window.parent._shortcutHandler);
+    }
+    
+    window.parent._shortcutHandler = function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's' && !e.shiftKey) {
+            e.preventDefault();
+            const buttons = Array.from(parentDoc.querySelectorAll('button'));
+            const saveBtn = buttons.find(b => b.innerText.includes('Force Save Project'));
+            if (saveBtn) {
+                saveBtn.click();
+            }
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'S' && e.shiftKey) {
+            e.preventDefault();
+            const buttons = Array.from(parentDoc.querySelectorAll('button'));
+            const snapBtn = buttons.find(b => b.innerText.includes('Create Snapshot'));
+            if (snapBtn) {
+                snapBtn.click();
+            }
+        }
+    };
+    
+    parentDoc.addEventListener('keydown', window.parent._shortcutHandler);
+    </script>
+    """
+    st.components.v1.html(js_code, height=0, width=0)
 
 
 # =============================================================================

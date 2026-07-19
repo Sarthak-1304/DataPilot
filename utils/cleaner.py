@@ -453,13 +453,17 @@ def calculate_quality_score(df: pd.DataFrame) -> dict:
     outlier_cols_count = 0
     if len(num_cols) > 0:
         for col in num_cols:
-            q1 = df[col].quantile(0.25)
-            q3 = df[col].quantile(0.75)
-            iqr = q3 - q1
-            if iqr > 0:
-                outliers = ((df[col] < q1 - 1.5 * iqr) | (df[col] > q3 + 1.5 * iqr)).sum()
-                if outliers / len(df) > 0.005:
-                    outlier_cols_count += 1
+            try:
+                q1 = df[col].quantile(0.25)
+                q3 = df[col].quantile(0.75)
+                iqr = q3 - q1
+                if pd.notna(iqr) and iqr > 0:
+                    outliers_mask = ((df[col] < q1 - 1.5 * iqr) | (df[col] > q3 + 1.5 * iqr))
+                    outliers = outliers_mask.fillna(False).sum()
+                    if outliers / len(df) > 0.005:
+                        outlier_cols_count += 1
+            except Exception:
+                pass
     outlier_deduct = outlier_cols_count * 3
 
     # - Negative values in strictly positive fields (e.g. quantity, age, sales, price)
@@ -469,9 +473,13 @@ def calculate_quality_score(df: pd.DataFrame) -> dict:
         if any(kw in col_lower for kw in ["quantity", "age", "qty", "sales", "price"]):
             non_null = df[col].dropna()
             if len(non_null) > 0:
-                neg_ratio = (non_null < 0).sum() / len(non_null)
-                if 0.0 < neg_ratio < 0.25:
-                    invalid_negative_cols += 1
+                try:
+                    neg_mask = (non_null < 0)
+                    neg_ratio = neg_mask.fillna(False).sum() / len(non_null)
+                    if 0.0 < neg_ratio < 0.25:
+                        invalid_negative_cols += 1
+                except Exception:
+                    pass
     invalid_neg_deduct = invalid_negative_cols * 4
 
     # - Constant columns

@@ -46,11 +46,32 @@ def initialize_session_state():
 
         # Report path
         "report_path": None,
+        
+        # Save status
+        "save_status": "no_project",
+        "last_saved_time": "",
     }
 
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+
+    # Check for active session recovery/restore status on launch
+    if "recovery_checked" not in st.session_state:
+        st.session_state["recovery_checked"] = True
+        from utils.sync_manager import get_active_session, PROJECTS_DIR
+        import os
+        session = get_active_session()
+        if session:
+            p_id = session.get("active_project_id")
+            clean = session.get("clean_exit", True)
+            
+            # Check if project folder still exists
+            if p_id and os.path.exists(os.path.join(PROJECTS_DIR, p_id)):
+                if not clean:
+                    st.session_state["show_crash_recovery"] = p_id
+                else:
+                    st.session_state["show_restore_modal"] = p_id
 
 
 def get_state(key: str, default: Any = None) -> Any:
@@ -96,6 +117,7 @@ def add_activity(action: str, details: str = ""):
     """
     entry = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "time": datetime.now().strftime("%I:%M %p"),
         "action": action,
         "details": details,
     }
