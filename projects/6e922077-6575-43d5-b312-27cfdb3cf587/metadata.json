@@ -1,0 +1,61 @@
+{
+    "id": "6e922077-6575-43d5-b312-27cfdb3cf587",
+    "name": "Retail Sales Dirty Dataset Dashboard",
+    "dataset_name": "retail_sales_dirty_dataset.xlsx",
+    "rows": 203,
+    "cols": 16,
+    "last_saved": "2026-07-16 11:58:13",
+    "status": "All changes saved",
+    "quality_score": 72,
+    "pinned": false,
+    "tags": [
+        "EDA"
+    ],
+    "notes": [],
+    "is_template": false,
+    "current_page": "Cleaning",
+    "activity_log": [
+        {
+            "timestamp": "2026-07-16 11:58:12",
+            "time": "11:58 AM",
+            "action": "Backup Recovered",
+            "details": "Recovered state after unexpected app close"
+        },
+        {
+            "timestamp": "2026-07-16 11:51:03",
+            "time": "11:51 AM",
+            "action": "Filled 16 missing numeric values (median)",
+            "details": ""
+        },
+        {
+            "timestamp": "2026-07-16 11:51:00",
+            "time": "11:51 AM",
+            "action": "Removed 2 duplicate rows",
+            "details": ""
+        },
+        {
+            "timestamp": "2026-07-16 11:50:46",
+            "time": "11:50 AM",
+            "action": "Snapshot Created",
+            "details": "Version 1: Initial Upload"
+        },
+        {
+            "timestamp": "2026-07-16 11:50:46",
+            "time": "11:50 AM",
+            "action": "Dataset Uploaded",
+            "details": "retail_sales_dirty_dataset.xlsx (205 rows \u00d7 16 cols)"
+        }
+    ],
+    "cleaning_steps": [
+        {
+            "step": "Removed 2 duplicate rows",
+            "timestamp": "11:51 AM"
+        },
+        {
+            "step": "Filled 16 missing numeric values (median)",
+            "timestamp": "11:51 AM"
+        }
+    ],
+    "saved_pipelines": [],
+    "last_opened": "2026-07-16 11:58:12"
+}
