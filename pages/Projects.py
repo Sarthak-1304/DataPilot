@@ -88,8 +88,8 @@ def get_project_thumbnail_html(project: dict) -> str:
 def render_projects_dashboard():
     st.markdown("### 📁 Project Catalog")
     
-    # Load all projects
-    projects = list_projects()
+    # Load user projects (exclude templates)
+    projects = [p for p in list_projects() if not p.get("is_template", False)]
     
     if not projects:
         render_html("""
@@ -97,7 +97,7 @@ def render_projects_dashboard():
             <div style="font-size: 3rem; margin-bottom: 0.6rem; opacity: 0.4;">📁</div>
             <h3 style="border:none; padding:0; margin-bottom:0.4rem;">No Saved Projects</h3>
             <p style="color:var(--text-secondary); font-size:0.9rem; max-width:420px; margin:0 auto; line-height:1.6;">
-                Save your progress or upload a dataset to create your first project. All templates are loaded automatically.
+                Save your progress or upload a dataset to create your first project.
             </p>
         </div>
         """)
@@ -129,18 +129,13 @@ def render_projects_dashboard():
         st.info("No projects match your search filters.")
         return
 
-    # Separate user projects and templates
-    user_projects = [p for p in filtered if not p.get("is_template", False)]
-    template_projects = [p for p in filtered if p.get("is_template", False)]
+    user_projects = filtered
     
     # Sort user projects: pinned first, then last opened desc
     user_projects.sort(key=lambda p: (
         not p.get("pinned", False),
         -datetime.datetime.strptime(p.get("last_opened", "1970-01-01 00:00:00"), "%Y-%m-%d %H:%M:%S").timestamp() if p.get("last_opened") else 0
     ))
-    
-    # Sort templates by name
-    template_projects.sort(key=lambda p: p["name"])
 
     # Nested helper to render a grid of project cards
     def render_project_grid(projects_list):
@@ -166,14 +161,12 @@ def render_projects_dashboard():
             
             with col:
                 pinned_banner = '<span style="font-size: 0.75rem; color: #F59E0B; font-weight: 600; display: inline-flex; align-items: center; gap: 0.2rem; margin-bottom: 0.3rem;">📌 Pinned</span>' if pinned else ''
-                template_banner = '<span style="font-size: 0.75rem; color: #8B5CF6; font-weight: 600; display: inline-flex; align-items: center; gap: 0.2rem; margin-bottom: 0.3rem;">⚡ Template</span>' if is_template else ''
                 
                 render_html(f"""
-                <div class="content-card animate-in" style="margin-bottom: 1rem; border-top: 2px solid {'#F59E0B' if pinned else '#8B5CF6' if is_template else 'var(--card-border)'};">
+                <div class="content-card animate-in" style="margin-bottom: 1rem; border-top: 2px solid {'#F59E0B' if pinned else 'var(--card-border)'};">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
                         <div>
                             {pinned_banner}
-                            {template_banner}
                             <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: var(--text-primary); border: none; padding: 0;">{p_name}</h4>
                             <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.15rem; word-break: break-all;">📁 {ds_name}</div>
                         </div>
@@ -258,16 +251,9 @@ def render_projects_dashboard():
     else:
         st.markdown("""
         <div style="padding: 1.5rem; background: rgba(255, 255, 255, 0.02); border: 1px dashed var(--card-border); border-radius: 8px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 2rem;">
-            No custom workspaces found. Click on a template below to get started, or upload a dataset from the home page.
+            No custom projects found. Upload a dataset from the home page to get started.
         </div>
         """, unsafe_allow_html=True)
-
-    # Render Quick Start Templates Section
-    render_html("<br><h3>⚡ Quick Start Templates</h3>")
-    if template_projects:
-        render_project_grid(template_projects)
-    else:
-        st.info("No templates available.")
 
 # ─── Render Storage Analytics ────────────────────────────────────────
 def render_storage_analytics():
