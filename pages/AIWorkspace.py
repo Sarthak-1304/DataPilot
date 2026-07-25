@@ -2,13 +2,36 @@ import streamlit as st
 import pandas as pd
 import json
 import datetime
+import importlib
+
+import ai.gemini_manager
+importlib.reload(ai.gemini_manager)
 from ai.gemini_manager import is_gemini_configured, generate_response_stream
+
+import ai.prompt_manager
+importlib.reload(ai.prompt_manager)
 from ai.prompt_manager import PromptManager
+
+import ai.intent_router
+importlib.reload(ai.intent_router)
 from ai.intent_router import IntentRouter
+
+import ai.dataframe_agent
+importlib.reload(ai.dataframe_agent)
 from ai.dataframe_agent import DataFrameAgent
+
+import ai.insight_agent
+importlib.reload(ai.insight_agent)
 from ai.insight_agent import InsightAgent
+
+import ai.report_agent
+importlib.reload(ai.report_agent)
 from ai.report_agent import ReportAgent
+
+import ai.chat_manager
+importlib.reload(ai.chat_manager)
 from ai.chat_manager import get_chat_history, save_chat_message, clear_chat_history
+
 import plotly.express as px
 import plotly.graph_objects as go
 from fpdf import FPDF
@@ -42,14 +65,14 @@ def render_ai_workspace():
         f"""
         <div class="top-header">
             <h2>🤖 AI Workspace</h2>
-            <p>Converse with your dataset naturally using Gemini 3.5 Flash. Analyzing <strong>{df_label}</strong> ({df.shape[0]:,} rows, {df.shape[1]:,} columns).</p>
+            <p>Ask questions about your dataset using AI. Analyzing <strong>{df_label}</strong> ({df.shape[0]:,} rows, {df.shape[1]:,} columns).</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     if not is_gemini_configured():
-        st.info("💡 **Welcome to the AI Workspace!**\n\nTo begin chatting with your dataset, please configure your Gemini API Key in `.streamlit/secrets.toml`:\n\n```toml\nGEMINI_API_KEY = \"your_actual_api_key_here\"\n```")
+        st.info("💡 **Welcome to the AI Workspace!**\n\nTo begin chatting with your dataset, please configure your AI API Key in `.streamlit/secrets.toml`:\n\n```toml\nGEMINI_API_KEY = \"your_actual_api_key_here\"\n```")
         return
     # Inject Custom Chat Styles
     st.markdown("""
@@ -102,8 +125,8 @@ def render_ai_workspace():
             padding: 0 !important;
         }
 
-        /* Gemini Suggestion Cards */
-        .gemini-suggest-card {
+        /* AI Suggestion Cards */
+        .ai-suggest-card {
             background: var(--card-bg) !important;
             border: 1px solid var(--card-border) !important;
             border-radius: 16px !important;
@@ -119,14 +142,14 @@ def render_ai_workspace():
             margin-bottom: 0.8rem !important;
         }
         
-        .gemini-suggest-card:hover {
+        .ai-suggest-card:hover {
             transform: translateY(-4px) !important;
             box-shadow: 0 8px 24px rgba(0,0,0,0.06) !important;
         }
-        .gemini-suggest-card.blue:hover { border-color: #3B82F6 !important; box-shadow: 0 8px 24px rgba(59, 130, 246, 0.12) !important; }
-        .gemini-suggest-card.purple:hover { border-color: #8B5CF6 !important; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.12) !important; }
-        .gemini-suggest-card.green:hover { border-color: #10B981 !important; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12) !important; }
-        .gemini-suggest-card.red:hover { border-color: #EF4444 !important; box-shadow: 0 8px 24px rgba(239, 68, 68, 0.12) !important; }
+        .ai-suggest-card.blue:hover { border-color: #3B82F6 !important; box-shadow: 0 8px 24px rgba(59, 130, 246, 0.12) !important; }
+        .ai-suggest-card.purple:hover { border-color: #8B5CF6 !important; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.12) !important; }
+        .ai-suggest-card.green:hover { border-color: #10B981 !important; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12) !important; }
+        .ai-suggest-card.red:hover { border-color: #EF4444 !important; box-shadow: 0 8px 24px rgba(239, 68, 68, 0.12) !important; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -139,7 +162,7 @@ def render_ai_workspace():
         clicked_prompt = None
 
         if not has_history:
-            # Render the Gemini Hero greeting
+            # Render the AI Hero greeting
             st.markdown("""
                 <div style="margin-top: 1.5rem; margin-bottom: 2.2rem; text-align: left; padding-left: 0.5rem;">
                     <h1 style="
@@ -184,7 +207,7 @@ def render_ai_workspace():
             for col, (label, prompt, desc, icon, color_class) in zip(temp_cols, suggestions):
                 with col:
                     st.markdown(f"""
-                        <div class="gemini-suggest-card {color_class}">
+                        <div class="ai-suggest-card {color_class}">
                             <div>
                                 <span style="font-size: 1.4rem; display: block; margin-bottom: 0.5rem;">{icon}</span>
                                 <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0.2rem;">{label}</div>
@@ -222,12 +245,16 @@ def render_ai_workspace():
             user_input = clicked_prompt
 
         if user_input:
+            auto_charts_enabled = st.session_state.get("pref_auto_charts", True)
+            save_chat_enabled = st.session_state.get("pref_save_chat", True)
+
             # 1. Display User Message
             with st.chat_message("user"):
                 st.markdown(user_input)
             
-            # Save User Message to History and DB
-            save_chat_message(project_id, "user", user_input)
+            # Save User Message to History and DB (if enabled)
+            if save_chat_enabled:
+                save_chat_message(project_id, "user", user_input)
             st.session_state["chat_history"].append({"role": "user", "content": user_input, "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
 
             # 2. Process Assistant Response
@@ -243,11 +270,13 @@ def render_ai_workspace():
                 if intent in ["aggregation", "summary", "filtering"]:
                     with st.spinner("🤖 Pre-calculating statistics locally..."):
                         calc_result = DataFrameAgent.query_with_pandas(user_input, df)
-                elif intent == "chart":
-                    with st.spinner("📊 Building visualization specs..."):
-                        chart_code = DataFrameAgent.generate_plotly_code(user_input, df)
+                elif intent == "chart" or (auto_charts_enabled and any(kw in user_input.lower() for kw in ["chart", "plot", "graph", "histogram", "scatter", "box", "bar", "visualize"])):
+                    if auto_charts_enabled:
+                        with st.spinner("📊 Building visualization specs..."):
+                            if hasattr(DataFrameAgent, "generate_plotly_code"):
+                                chart_code = DataFrameAgent.generate_plotly_code(user_input, df)
                 
-                # Setup prompt & call Gemini (Stream response)
+                # Setup prompt & call AI (Stream response)
                 system_prompt = PromptManager.get_system_prompt()
                 final_prompt = PromptManager.construct_analysis_prompt(user_input, df, calc_result, intent)
                 
@@ -260,9 +289,9 @@ def render_ai_workspace():
                     response_placeholder.markdown(full_response + "▌")
                 response_placeholder.markdown(full_response)
                 
-                # Render and save chart if requested
+                # Render and save chart if requested & enabled
                 chart_save_data = None
-                if intent == "chart" and chart_code:
+                if auto_charts_enabled and chart_code:
                     try:
                         local_vars = {"df": df, "px": px, "go": go, "fig": None}
                         exec(chart_code, {}, local_vars)
@@ -273,8 +302,9 @@ def render_ai_workspace():
                     except Exception as e:
                         st.caption(f"Failed to execute plotly script: {e}")
 
-                # Save assistant response to SQLite and state
-                save_chat_message(project_id, "assistant", full_response, chart_save_data)
+                # Save assistant response to SQLite (if enabled) and session state
+                if save_chat_enabled:
+                    save_chat_message(project_id, "assistant", full_response, chart_save_data)
                 st.session_state["chat_history"].append({
                     "role": "assistant",
                     "content": full_response,
@@ -327,7 +357,7 @@ def render_ai_workspace():
                 pdf.set_font("Arial", size=9)
                 pdf.multi_cell(0, 5, txt=content)
                 pdf.ln(5)
-            return pdf.output(dest='S')
+            return bytes(pdf.output())
 
         # Download buttons row
         st.download_button("📄 Export PDF", data=create_pdf(chat_logs) if chat_logs else b"", file_name=f"chat_export_{project_id}.pdf", mime="application/pdf", use_container_width=True)
