@@ -3,10 +3,34 @@ import google.generativeai as genai
 from typing import Iterator
 
 def get_gemini_api_key() -> str:
-    """Retrieve Gemini API Key from secrets or session state."""
-    if "GEMINI_API_KEY" in st.secrets:
-        return st.secrets["GEMINI_API_KEY"]
-    return st.session_state.get("user_gemini_api_key", "")
+    """Retrieve Gemini API Key from session state override or secrets."""
+    session_key = st.session_state.get("user_gemini_api_key", "")
+    if session_key and session_key.strip():
+        return session_key.strip()
+    try:
+        if "GEMINI_API_KEY" in st.secrets:
+            key = st.secrets["GEMINI_API_KEY"]
+            if key and key.strip():
+                return key.strip()
+    except Exception:
+        pass
+
+    try:
+        import os
+        secrets_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".streamlit", "secrets.toml")
+        if os.path.exists(secrets_path):
+            with open(secrets_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip().startswith("GEMINI_API_KEY"):
+                        parts = line.split("=", 1)
+                        if len(parts) == 2:
+                            val = parts[1].strip().strip('"').strip("'")
+                            if val:
+                                return val
+    except Exception:
+        pass
+
+    return ""
 
 def is_gemini_configured() -> bool:
     """Check if a valid Gemini API Key is configured."""
@@ -50,7 +74,7 @@ def get_best_available_model() -> str:
 def generate_response_stream(prompt: str, system_instruction: str = "") -> Iterator[str]:
     """Stream response from Gemini model."""
     if not init_gemini():
-        yield "❌ Gemini API Key is not configured in st.secrets[\"GEMINI_API_KEY\"]."
+        yield "❌ AI API Key is not configured. Please add your API key in .streamlit/secrets.toml."
         return
         
     try:
@@ -64,4 +88,4 @@ def generate_response_stream(prompt: str, system_instruction: str = "") -> Itera
             if chunk.text:
                 yield chunk.text
     except Exception as e:
-        yield f"❌ Error communicating with Gemini API: {str(e)}"
+        yield f"❌ Error communicating with AI service: {str(e)}"
