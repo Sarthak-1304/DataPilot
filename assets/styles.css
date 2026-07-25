@@ -151,39 +151,45 @@ html, body, [data-testid="stAppViewContainer"] {
    TOP HEADER BAR
    ================================================================ */
 .top-header {
-    background: linear-gradient(135deg, var(--primary-blue) 0%, #1D4ED8 50%, var(--info-purple) 100%);
-    border-radius: var(--border-radius-lg);
-    padding: 1.2rem 1.8rem;
-    margin-bottom: 1.2rem;
-    color: white;
-    box-shadow: var(--shadow-lg);
-    position: relative;
-    overflow: hidden;
+    background: var(--card-bg) !important;
+    border: 1px solid var(--card-border) !important;
+    border-left: 4px solid #6366F1 !important;
+    border-radius: 14px !important;
+    padding: 1.1rem 1.6rem !important;
+    margin-bottom: 1.2rem !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+    position: relative !important;
+    overflow: hidden !important;
 }
 
 .top-header::before {
     content: '';
     position: absolute;
-    top: -50%;
-    right: -20%;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
-    border-radius: 50%;
+    top: 0;
+    right: 0;
+    width: 250px;
+    height: 100%;
+    background: radial-gradient(circle at 100% 50%, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+    pointer-events: none;
 }
 
 .top-header h2 {
-    margin: 0 0 0.2rem 0;
-    font-size: 1.25rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    margin: 0 0 0.25rem 0 !important;
+    font-size: 1.3rem !important;
+    font-weight: 800 !important;
+    color: var(--text-primary) !important;
+    letter-spacing: -0.02em !important;
+    border: none !important;
+    padding: 0 !important;
 }
 
 .top-header p {
-    margin: 0;
-    font-size: 0.82rem;
-    opacity: 0.85;
-    font-weight: 400;
+    margin: 0 !important;
+    font-size: 0.83rem !important;
+    color: var(--text-secondary) !important;
+    opacity: 0.95 !important;
+    font-weight: 400 !important;
 }
 
 /* ================================================================
