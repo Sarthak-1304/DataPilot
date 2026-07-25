@@ -50,6 +50,12 @@ def initialize_session_state():
         # Save status
         "save_status": "no_project",
         "last_saved_time": "",
+
+        # AI Preferences
+        "user_gemini_api_key": "",
+        "pref_ai_tone": "Balanced (Recommended)",
+        "pref_auto_charts": True,
+        "pref_save_chat": True,
     }
 
     for key, value in defaults.items():
@@ -59,19 +65,39 @@ def initialize_session_state():
     # Check for active session recovery/restore status on launch
     if "recovery_checked" not in st.session_state:
         st.session_state["recovery_checked"] = True
-        from utils.sync_manager import get_active_session, PROJECTS_DIR
+        from utils.sync_manager import get_active_session, set_active_session, load_project, PROJECTS_DIR
         import os
+        from datetime import datetime
+
         session = get_active_session()
         if session:
             p_id = session.get("active_project_id")
             clean = session.get("clean_exit", True)
-            
-            # Check if project folder still exists
-            if p_id and os.path.exists(os.path.join(PROJECTS_DIR, p_id)):
-                if not clean:
+            last_activity = session.get("last_activity_time", "")
+
+            # Verify session freshness (under 24 hours)
+            is_fresh = False
+            if last_activity:
+                try:
+                    dt = datetime.strptime(last_activity, "%Y-%m-%d %H:%M:%S")
+                    age_seconds = (datetime.now() - dt).total_seconds()
+                    if age_seconds < 86400:  # 24 hours
+                        is_fresh = True
+                except Exception:
+                    pass
+
+            p_dir = os.path.join(PROJECTS_DIR, p_id) if p_id else None
+            backup_file = os.path.join(p_dir, "backups", "latest_backup.parquet") if p_dir else None
+
+            if is_fresh and p_dir and os.path.exists(p_dir):
+                if not clean and backup_file and os.path.exists(backup_file):
                     st.session_state["show_crash_recovery"] = p_id
                 else:
-                    st.session_state["show_restore_modal"] = p_id
+                    # Clean active session — automatically restore project on refresh!
+                    load_project(p_id)
+            else:
+                # Expired session — clear active_session file
+                set_active_session(None)
 
 
 def get_state(key: str, default: Any = None) -> Any:
