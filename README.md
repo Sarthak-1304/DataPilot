@@ -41,13 +41,12 @@
 
 ```mermaid
 flowchart TD
-    A["📂 Upload Dataset / Load Project"] --> B["📊 Dataset Overview & Health Profiling"]
+    A["📂 Upload Dataset / Load Project"] --> B["🏠 Dataset Overview Dashboard"]
     B --> C["🧹 Data Cleaning & Hygiene Pipeline"]
     C --> D["🔄 Before vs After Comparative Impact"]
     D --> E["📈 Statistical EDA & Insights"]
-    E --> F["🎛️ Executive Dashboard & KPIs"]
-    F --> G["📑 Executive Report Builder & AI Synthesis"]
-    G --> H["📥 Multi-Format Export Center<br/>(PDF, HTML, Excel, DOCX, PPTX, MD, CSV, JSON)"]
+    E --> F["📑 Executive Report Builder & AI Synthesis"]
+    F --> G["📥 Multi-Format Export Center<br/>(PDF, HTML, Excel, DOCX, PPTX, MD, CSV, JSON)"]
 ```
 
 ---
