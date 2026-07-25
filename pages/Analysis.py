@@ -39,6 +39,15 @@ from utils.analyzer import (
 from utils.helpers import format_number, get_memory_usage
 from utils.cleaner import calculate_quality_score as calc_quality_dict
 
+import importlib
+import ai.gemini_manager
+importlib.reload(ai.gemini_manager)
+from ai.gemini_manager import is_gemini_configured
+
+import ai.insight_agent
+importlib.reload(ai.insight_agent)
+from ai.insight_agent import InsightAgent
+
 
 # =============================================================================
 # Helper Utilities
@@ -231,9 +240,11 @@ def generate_smart_insights(df: pd.DataFrame) -> list:
     # 7. Correlations
     if len(num_cols) >= 2:
         corr = df[num_cols].corr()
-        np.fill_diagonal(corr.values, 0)
-        strong_pos = corr.stack().idxmax() if not corr.stack().isna().all() else None
-        strong_neg = corr.stack().idxmin() if not corr.stack().isna().all() else None
+        corr_vals = corr.to_numpy(copy=True)
+        np.fill_diagonal(corr_vals, 0)
+        corr_clean = pd.DataFrame(corr_vals, index=corr.index, columns=corr.columns)
+        strong_pos = corr_clean.stack().idxmax() if not corr_clean.stack().isna().all() else None
+        strong_neg = corr_clean.stack().idxmin() if not corr_clean.stack().isna().all() else None
 
         if strong_pos:
             val = corr.loc[strong_pos[0], strong_pos[1]]
@@ -435,9 +446,10 @@ def render_analysis():
     # Calculating correlation strength
     if len(num_cols) >= 2:
         corr_matrix = target_df[num_cols].corr().abs()
-        np.fill_diagonal(corr_matrix.values, np.nan)
-        mean_corr = corr_matrix.mean().mean()
-        mean_corr_val = 0.0 if pd.isna(mean_corr) else mean_corr
+        corr_vals = corr_matrix.to_numpy(copy=True)
+        np.fill_diagonal(corr_vals, np.nan)
+        mean_corr = np.nanmean(corr_vals)
+        mean_corr_val = 0.0 if pd.isna(mean_corr) else float(mean_corr)
     else:
         mean_corr_val = 0.0
     corr_desc = "Strong" if mean_corr_val > 0.6 else ("Moderate" if mean_corr_val > 0.3 else "Weak")
@@ -522,8 +534,8 @@ def render_analysis():
     # ==========================================
     # SECTION 3: ANALYSIS TABS
     # ==========================================
-    tab_overview, tab_stats, tab_dist, tab_relation, tab_corr, tab_insights, tab_recs = st.tabs([
-        "📋 Overview", "📈 Statistics", "📊 Distributions", "🔄 Relationships", "🌡️ Correlations", "💡 Insights", "🎯 Recommendations"
+    tab_overview, tab_stats, tab_relation, tab_corr, tab_insights = st.tabs([
+        "📋 Overview", "📈 Statistics", "🔄 Relationships", "🌡️ Correlations", "💡 Insights"
     ])
 
     # ----------------------------------------------------
@@ -724,79 +736,7 @@ def render_analysis():
 
             st.markdown(f"<div class='recommendation info'>{rec_text}</div>", unsafe_allow_html=True)
 
-    # ----------------------------------------------------
-    # TAB 3: DISTRIBUTIONS
-    # ----------------------------------------------------
-    with tab_dist:
-        st.markdown("### 📊 Distribution Profiling")
-        if num_cols:
-            dist_col = st.selectbox("Select Numeric Column to analyze distribution:", num_cols, key="dist_select")
-            if dist_col:
-                series = target_df[dist_col].dropna()
-                skew = series.skew()
-                kurt = series.kurtosis()
-                
-                # Render graphs side by side
-                d_c1, d_c2 = st.columns(2)
-                with d_c1:
-                    # Histogram + KDE approximation
-                    fig_hist = px.histogram(
-                        target_df, x=dist_col, marginal="rug",
-                        color_discrete_sequence=["#6366F1"], title=f"Histogram & Rug Plot for {dist_col}"
-                    )
-                    fig_hist.update_layout(
-                        margin=dict(l=20, r=20, t=40, b=20),
-                        height=320,
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="rgba(0,0,0,0)",
-                    )
-                    st.plotly_chart(fig_hist, use_container_width=True)
 
-                with d_c2:
-                    # Boxplot + Violin Plot
-                    fig_box = px.violin(
-                        target_df, y=dist_col, box=True, points="outliers",
-                        color_discrete_sequence=["#10B981"], title=f"Violin & Box Plot for {dist_col}"
-                    )
-                    fig_box.update_layout(
-                        margin=dict(l=20, r=20, t=40, b=20),
-                        height=320,
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="rgba(0,0,0,0)",
-                    )
-                    st.plotly_chart(fig_box, use_container_width=True)
-
-                # Interpretation
-                skew_desc = "perfectly symmetrical"
-                if skew > 1:
-                    skew_desc = "highly right-skewed (positively skewed)"
-                elif skew > 0.5:
-                    skew_desc = "moderately right-skewed"
-                elif skew < -1:
-                    skew_desc = "highly left-skewed (negatively skewed)"
-                elif skew < -0.5:
-                    skew_desc = "moderately left-skewed"
-
-                q1 = series.quantile(0.25)
-                q3 = series.quantile(0.75)
-                iqr = q3 - q1
-                outliers_cnt = int(((series < (q1 - 1.5 * iqr)) | (series > (q3 + 1.5 * iqr))).sum())
-
-                interpretation_html = f"""
-                <div class="content-card" style="margin-top: 1rem;">
-                    <h4>Distribution Analysis Details</h4>
-                    <p style="font-size:0.82rem; line-height:1.5; color:var(--text-secondary);">
-                        The selected feature <b>{dist_col}</b> features a skewness score of <b>{skew:.2f}</b>, 
-                        indicating a <b>{skew_desc}</b> profile. 
-                        Its kurtosis score is <b>{kurt:.2f}</b>. 
-                        The central 50% of the dataset lies between <b>{q1:,.2f}</b> and <b>{q3:,.2f}</b>. 
-                        We detected <b>{outliers_cnt} outliers</b> in total for this column.
-                    </p>
-                </div>
-                """
-                st.markdown(interpretation_html, unsafe_allow_html=True)
-        else:
-            st.info("No numeric columns available to display distributions.")
 
     # ----------------------------------------------------
     # TAB 4: RELATIONSHIPS
@@ -919,7 +859,20 @@ def render_analysis():
 
         with sub_smart:
             st.markdown("#### Automated Observations & Patterns")
-            smart_list = generate_smart_insights(target_df)
+            smart_list = None
+            if is_gemini_configured():
+                with st.spinner("🤖 Generating AI Smart Insights..."):
+                    try:
+                        smart_list = InsightAgent.generate_ai_smart_insights(target_df)
+                    except Exception:
+                        smart_list = None
+
+            is_ai_smart = smart_list is not None
+            if not smart_list:
+                smart_list = generate_smart_insights(target_df)
+
+            if is_ai_smart:
+                st.caption("✨ *Generated dynamically by AI Engine*")
             
             # Show insights in clean row list
             for ins in smart_list:
@@ -946,7 +899,21 @@ def render_analysis():
 
         with sub_business:
             st.markdown("#### Executive Summary in Business Language")
-            bus_list = generate_business_insights(target_df)
+            bus_list = None
+            if is_gemini_configured():
+                with st.spinner("🤖 Generating AI Business Insights..."):
+                    try:
+                        bus_list = InsightAgent.generate_ai_business_insights(target_df)
+                    except Exception:
+                        bus_list = None
+
+            is_ai_bus = bus_list is not None
+            if not bus_list:
+                bus_list = generate_business_insights(target_df)
+
+            if is_ai_bus:
+                st.caption("✨ *Generated dynamically by AI Engine*")
+
             for bus in bus_list:
                 st.markdown(
                     f"""
@@ -959,6 +926,23 @@ def render_analysis():
 
         with sub_outliers:
             st.markdown("#### Outlier Analysis details")
+            if is_gemini_configured() and outlier_info:
+                with st.spinner("🤖 Generating AI Outlier Analysis..."):
+                    try:
+                        ai_outlier_text = InsightAgent.generate_ai_outliers_insight(target_df, outlier_info)
+                        if ai_outlier_text:
+                            st.markdown(
+                                f"""
+                                <div style="background: rgba(239, 68, 68, 0.04); padding: 0.85rem 1.1rem; border-left: 3px solid #EF4444; border-radius: 4px; margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-primary);">
+                                    {ai_outlier_text}
+                                </div>
+                                """,
+                                unsafe_allow_html=True
+                            )
+                            st.caption("✨ *Generated dynamically by AI Engine*")
+                    except Exception:
+                        pass
+
             if outlier_info:
                 o_data = []
                 for k, v in outlier_info.items():
@@ -1013,18 +997,33 @@ def render_analysis():
                         )
                         st.plotly_chart(fig_ts, use_container_width=True)
                         
+                        ai_ts_text = None
+                        if is_gemini_configured():
+                            try:
+                                ai_ts_text = InsightAgent.generate_ai_timeseries_insight(target_df, d_col, t_num)
+                            except Exception:
+                                ai_ts_text = None
+
+                        if ai_ts_text:
+                            interp_body = ai_ts_text
+                            caption = "✨ *Generated dynamically by AI Engine*"
+                        else:
+                            interp_body = f"Average levels for <b>{t_num}</b> feature stable temporal changes. Reviewing rolling distributions is recommended for predictive scheduling."
+                            caption = ""
+
                         st.markdown(
                             f"""
                             <div class="content-card">
                                 <h5>Trend Interpretation</h5>
                                 <p style="font-size:0.8rem; color:var(--text-secondary);">
-                                    Average levels for <b>{t_num}</b> feature stable temporal changes. 
-                                    Reviewing rolling distributions is recommended for predictive scheduling.
+                                    {interp_body}
                                 </p>
                             </div>
                             """,
                             unsafe_allow_html=True
                         )
+                        if caption:
+                            st.caption(caption)
                     else:
                         st.warning("Empty records after date conversions.")
                 else:
@@ -1036,6 +1035,22 @@ def render_analysis():
             st.markdown("#### Missing Value Patterns")
             missing_df = get_missing_values(target_df)
             if missing_df["Missing Count"].sum() > 0:
+                if is_gemini_configured():
+                    try:
+                        ai_missing_text = InsightAgent.generate_ai_missing_insight(target_df, missing_df)
+                        if ai_missing_text:
+                            st.markdown(
+                                f"""
+                                <div style="background: rgba(245, 158, 11, 0.04); padding: 0.85rem 1.1rem; border-left: 3px solid #F59E0B; border-radius: 4px; margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-primary);">
+                                    {ai_missing_text}
+                                </div>
+                                """,
+                                unsafe_allow_html=True
+                            )
+                            st.caption("✨ *Generated dynamically by AI Engine*")
+                    except Exception:
+                        pass
+
                 m_c1, m_c2 = st.columns([1, 1])
                 with m_c1:
                     # Missing values heatmap
@@ -1059,85 +1074,7 @@ def render_analysis():
             else:
                 st.success("✅ No missing values detected in the entire dataset.")
 
-    # ----------------------------------------------------
-    # TAB 7: RECOMMENDATIONS
-    # ----------------------------------------------------
-    with tab_recs:
-        st.markdown("### 🎯 Actionable Recommendations & System Readiness")
-        
-        # Gauges
-        st.markdown("#### Quality Metrics Gauges")
-        g1, g2 = st.columns(2)
-        
-        # Calculate scores
-        conf_score = int(q_dict["total"] * 0.95 + 5)
-        ai_ready_score = int(q_dict["total"] * 0.92 + 8) if q_dict["total"] > 30 else 30
-        
-        with g1:
-            st.markdown("<div style='text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.25rem;'>Analysis Confidence</div>", unsafe_allow_html=True)
-            st.plotly_chart(draw_gauge(conf_score, "#10B981"), use_container_width=True)
-        with g2:
-            st.markdown("<div style='text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.25rem;'>AI Readiness Index</div>", unsafe_allow_html=True)
-            st.plotly_chart(draw_gauge(ai_ready_score, "#6366F1"), use_container_width=True)
 
-        st.markdown("#### Automated Action Steps")
-        # Generate recommendations based on quality
-        recs_list = []
-        if q_dict["completeness"] < 28:
-            recs_list.append({
-                "rec": "<b>Impute Missing Metrics:</b> Column structures contain empty cells. Suggest filling numeric empty fields with Median.",
-                "type": "Data Quality"
-            })
-        if outlier_cols_count > 0:
-            recs_list.append({
-                "rec": "<b>Winsorize Outliers:</b> Outlying values are present. Capping high dispersion variables is recommended before modeling.",
-                "type": "Statistics"
-            })
-        if q_dict["consistency"] < 18:
-            recs_list.append({
-                "rec": "<b>Standardize Categories:</b> Mixed categorical names detected. Apply uppercase/lowercase rules consistently.",
-                "type": "Consistency"
-            })
-        
-        # Business level recs
-        recs_list.append({
-            "rec": "<b>Feature Encoding:</b> Convert high cardinality nominal fields into structural indexes to train ML algorithms.",
-            "type": "AI Prep"
-        })
-        recs_list.append({
-            "rec": "<b>Normalize Numeric Limits:</b> Standardize ranges for high-dispersion metrics to enable robust predictive operations.",
-            "type": "Performance"
-        })
-
-        for item in recs_list:
-            st.markdown(
-                f"""
-                <div class="recommendation">
-                    <span style="font-size:0.68rem; font-weight:700; color:var(--primary-blue); text-transform:uppercase; display:block; margin-bottom:0.2rem;">{item["type"]}</span>
-                    <span style="color:var(--text-primary); font-size:0.82rem;">{item["rec"]}</span>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-        # AI Ready details
-        st.markdown("##### System Usecase Suitability")
-        st.markdown(
-            f"""
-            <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; padding:0.9rem;">
-                <p style="font-size:0.8rem; margin:0 0 0.5rem 0; color:var(--text-secondary);">
-                    Based on data properties, this dataset is ready for:
-                </p>
-                <div style="display:flex; flex-wrap:wrap; gap:0.4rem;">
-                    <span class="badge badge-green">Machine Learning (Classification/Regression)</span>
-                    <span class="badge badge-blue">Predictive Analytics</span>
-                    <span class="badge badge-purple">LLMs Knowledge Augmentation</span>
-                    <span class="badge badge-blue">Interactive Dashboarding</span>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
 
     # ==========================================
     # SECTION 4: EXPORT
