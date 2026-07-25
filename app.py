@@ -40,6 +40,13 @@ import pages.Settings as p_settings
 import pages.Projects as p_projects
 import pages.AIWorkspace as p_aiworkspace
 
+import utils.sync_manager
+import utils.report_builder
+import utils.report_exporter
+importlib.reload(utils.sync_manager)
+importlib.reload(utils.report_builder)
+importlib.reload(utils.report_exporter)
+
 # Force reload modules so editing pages takes effect immediately
 importlib.reload(p_dashboard)
 importlib.reload(p_upload)
@@ -50,6 +57,8 @@ importlib.reload(p_reports)
 importlib.reload(p_download)
 importlib.reload(p_settings)
 importlib.reload(p_projects)
+import ai.dataframe_agent
+importlib.reload(ai.dataframe_agent)
 importlib.reload(p_aiworkspace)
 
 from pages.Dashboard import render_dashboard
@@ -73,13 +82,18 @@ initialize_session_state()
 # ---------------------------------------------------------------------------
 @st.dialog("⚠️ Recover Unsaved Work?")
 def render_crash_recovery_dialog(p_id, recovered_time):
-    st.markdown(f"The application closed unexpectedly. We found an auto-backup from recently (**{recovered_time}**).")
+    if recovered_time and recovered_time != "recently":
+        time_desc = f"from **{recovered_time}**"
+    else:
+        time_desc = "from your recent session"
+    st.markdown(f"The application closed unexpectedly. We found an automatic backup {time_desc}.")
     c1, c2 = st.columns(2)
     with c1:
         if st.button("Recover", type="primary", key="crash_recover_btn", use_container_width=True):
-            from utils.sync_manager import load_project, recover_backup
+            from utils.sync_manager import load_project, recover_backup, set_active_session
             if load_project(p_id):
                 recover_backup(p_id)
+            set_active_session(p_id, clean_exit=True)
             if "show_crash_recovery" in st.session_state:
                 del st.session_state["show_crash_recovery"]
             st.rerun()
@@ -442,15 +456,6 @@ def render_landing_page():
                 ">📊</div>
                 <span style="color: white; font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em;">Data Pilot</span>
             </a>
-            <div style="display: flex; align-items: center; gap: 1.2rem;">
-                <details class="dropdown">
-                    <summary class="dropbtn">⋮ Menu</summary>
-                    <div class="dropdown-content">
-                        <a href="/?action=reset" target="_self">🏠 Home / Reset</a>
-                        <a href="#about-modal">ℹ️ About</a>
-                    </div>
-                </details>
-            </div>
         </div>
     """)
 
@@ -986,6 +991,7 @@ NAV_ITEMS = [
     ("🤖 AI Workspace",          "AIWorkspace"),
     ("📋 Reports",              "Reports"),
     ("📂 Projects & Timeline",  "Projects"),
+    ("⚙️ AI & Settings",        "Settings"),
 ]
 
 
@@ -1012,7 +1018,12 @@ def render_sidebar():
         # Define callback to update state immediately before the next rerun
         def on_nav_change():
             selected = st.session_state["nav_radio"]
-            st.session_state["current_page"] = label_to_page[selected]
+            page_key = label_to_page[selected]
+            st.session_state["current_page"] = page_key
+            try:
+                st.query_params["page"] = page_key
+            except Exception:
+                pass
 
         # Radio navigation
         st.radio(
@@ -1174,11 +1185,13 @@ def main():
     # Check for reload/reset query parameters to go home
     try:
         action = st.query_params.get("action")
+        page_param = st.query_params.get("page")
         theme = st.query_params.get("theme")
     except AttributeError:
         # Fallback for older Streamlit versions
         qp = st.experimental_get_query_params()
         action = qp.get("action", [None])[0]
+        page_param = qp.get("page", [None])[0]
         theme = qp.get("theme", [None])[0]
 
     if theme in ["light", "dark"]:
@@ -1189,12 +1202,15 @@ def main():
             pass
 
     if action == "reset":
+        from utils.sync_manager import set_active_session
+        set_active_session(None)
         st.session_state["original_df"] = None
         st.session_state["cleaned_df"] = None
         st.session_state["file_name"] = None
         st.session_state["file_size"] = None
         st.session_state["cleaning_steps"] = []
         st.session_state["cleaning_history"] = []
+        st.session_state["current_page"] = "Dashboard"
         # Keep the selected theme or default to dark
         st.session_state["theme"] = st.session_state.get("theme", "dark")
         if "landing_uploader" in st.session_state:
@@ -1213,6 +1229,17 @@ def main():
         except AttributeError:
             st.experimental_set_query_params()
         st.rerun()
+
+    if action == "settings":
+        st.session_state["current_page"] = "Settings"
+        try:
+            st.query_params.clear()
+        except AttributeError:
+            st.experimental_set_query_params()
+        st.rerun()
+
+    if page_param and page_param in PAGE_MAP and not action:
+        st.session_state["current_page"] = page_param
 
     # Dynamic theme variables configuration
     current_theme = st.session_state.get("theme", "dark")
@@ -1484,14 +1511,13 @@ def main():
         </div>
         """
 
-    gemini_status_html = ""
+    ai_status_html = ""
     try:
         from ai.gemini_manager import is_gemini_configured
         if is_gemini_configured():
-            gemini_status_html = """
+            ai_status_html = """
             <div style="display: flex; align-items: center; gap: 0.4rem; border-right: 1px solid #1F1E2E; padding-right: 1rem; margin-right: 0.4rem;">
-                <span class="save-status-badge" style="border-color: #10B981; color: #10B981; background: rgba(16, 185, 129, 0.05); font-weight: 600;">🤖 Gemini Connected</span>
-                <span style="color: #94A3B8; font-size: 0.72rem; font-weight: 500;">Model: Gemini 3.5 Flash</span>
+                <span class="save-status-badge" style="border-color: #10B981; color: #10B981; background: rgba(16, 185, 129, 0.05); font-weight: 600;">🤖 AI Connected</span>
             </div>
             """
     except Exception:
@@ -1527,13 +1553,14 @@ def main():
                 <span style="color: white; font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em;">Data Pilot</span>
             </a>
             <div style="display: flex; align-items: center; gap: 0.6rem;">
-                {gemini_status_html}
+                {ai_status_html}
                 {project_info_html}
                 <details class="dropdown">
                     <summary class="dropbtn">&#8942; Menu</summary>
                     <div class="dropdown-content">
                         <a href="/?action=reset" target="_self">&#127968; Home / Reset</a>
                         <a href="/?action=projects" target="_self">📁 Projects & Workspace</a>
+                        <a href="/?action=settings" target="_self">⚙️ AI & Settings</a>
                         <a href="#about-modal">&#8505;&#65039; About</a>
                     </div>
                 </details>
@@ -1597,8 +1624,8 @@ def main():
                     pass
         render_restore_dialog(p_id, p_name, last_saved_time)
 
-    # If no dataset is loaded, show the landing page
-    if st.session_state.get("original_df") is None:
+    # If no dataset is loaded and not on Settings page, show the landing page
+    if st.session_state.get("original_df") is None and st.session_state.get("current_page") != "Settings":
         render_landing_page()
         return
 
@@ -1654,6 +1681,12 @@ def main():
     render_sidebar()
 
     current_page = st.session_state.get("current_page", "Dashboard")
+    try:
+        if st.query_params.get("page") != current_page and not st.query_params.get("action"):
+            st.query_params["page"] = current_page
+    except Exception:
+        pass
+
     page_renderer = PAGE_MAP.get(current_page)
 
     if page_renderer:
@@ -1661,91 +1694,10 @@ def main():
     else:
         st.error(f"Page '{current_page}' not found.")
 
-    # Keyboard shortcuts handler
-    render_shortcuts_handler()
-
     # Autosave loop
     if st.session_state.get("project_id"):
         from utils.sync_manager import autosave
         autosave()
-
-
-def render_shortcuts_handler():
-    """Inject JavaScript to intercept keyboard shortcuts Ctrl+S and Ctrl+Shift+S."""
-    import streamlit as st
-    from datetime import datetime
-    
-    btn_save = st.button("Force Save Project", key="btn_shortcut_save", help="Internal use only")
-    btn_snapshot = st.button("Create Snapshot", key="btn_shortcut_snapshot", help="Internal use only")
-        
-    st.markdown("""
-        <style>
-        div.element-container:has(button[aria-label="Force Save Project"]),
-        div.element-container:has(button[aria-label="Create Snapshot"]) {
-            display: none !important;
-            height: 0px !important;
-            margin: 0px !important;
-            padding: 0px !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    if btn_save:
-        from utils.sync_manager import save_project
-        if st.session_state.get("project_id"):
-            st.session_state["save_status"] = "saving"
-            if save_project(st.session_state["project_id"]):
-                st.session_state["save_status"] = "saved"
-                st.session_state["last_saved_time"] = datetime.now().strftime("%I:%M %p")
-            else:
-                st.session_state["save_status"] = "failed"
-            st.rerun()
-            
-    if btn_snapshot:
-        from utils.sync_manager import save_project, PROJECTS_DIR
-        import json
-        import os
-        if st.session_state.get("project_id"):
-            p_id = st.session_state["project_id"]
-            if save_project(p_id, is_snapshot=True):
-                st.session_state["save_status"] = "saved"
-                st.session_state["last_saved_time"] = datetime.now().strftime("%I:%M %p")
-                st.toast("📸 Snapshot created successfully!")
-            else:
-                st.toast("❌ Snapshot creation failed!")
-            st.rerun()
-
-    js_code = """
-    <script>
-    const parentDoc = window.parent.document;
-    
-    if (window.parent._shortcutHandler) {
-        parentDoc.removeEventListener('keydown', window.parent._shortcutHandler);
-    }
-    
-    window.parent._shortcutHandler = function(e) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 's' && !e.shiftKey) {
-            e.preventDefault();
-            const buttons = Array.from(parentDoc.querySelectorAll('button'));
-            const saveBtn = buttons.find(b => b.innerText.includes('Force Save Project'));
-            if (saveBtn) {
-                saveBtn.click();
-            }
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key === 'S' && e.shiftKey) {
-            e.preventDefault();
-            const buttons = Array.from(parentDoc.querySelectorAll('button'));
-            const snapBtn = buttons.find(b => b.innerText.includes('Create Snapshot'));
-            if (snapBtn) {
-                snapBtn.click();
-            }
-        }
-    };
-    
-    parentDoc.addEventListener('keydown', window.parent._shortcutHandler);
-    </script>
-    """
-    st.components.v1.html(js_code, height=0, width=0)
 
 
 # =============================================================================
