@@ -107,6 +107,18 @@ class InsightAgent:
         except Exception:
             return None
 
+    @staticmethod
+    def _clean_json_response(raw: str) -> str:
+        """Extract clean JSON array string from raw LLM output."""
+        import re
+        text = raw.strip()
+        # Find first '[' and last ']'
+        start = text.find('[')
+        end = text.rfind(']')
+        if start != -1 and end != -1 and end > start:
+            return text[start:end+1].strip()
+        return text
+
     # -----------------------------------------------------------------
     # AI-Powered: Smart Insights
     # -----------------------------------------------------------------
@@ -145,15 +157,8 @@ IMPORTANT: Return ONLY the JSON array, no markdown, no code blocks, no explanati
             return None
 
         try:
-            # Clean possible markdown wrapping
-            text = raw.strip()
-            if text.startswith("```"):
-                text = "\n".join(text.split("\n")[1:])
-            if text.endswith("```"):
-                text = "\n".join(text.split("\n")[:-1])
-            text = text.strip()
-
-            insights = json.loads(text)
+            cleaned = InsightAgent._clean_json_response(raw)
+            insights = json.loads(cleaned)
             # Validate structure
             valid = []
             valid_colors = {"blue", "orange", "purple", "green", "red"}
@@ -201,14 +206,8 @@ Example: ["📊 <b>Revenue</b> shows a mean of <b>$45,200</b> with strong positi
             return None
 
         try:
-            text = raw.strip()
-            if text.startswith("```"):
-                text = "\n".join(text.split("\n")[1:])
-            if text.endswith("```"):
-                text = "\n".join(text.split("\n")[:-1])
-            text = text.strip()
-
-            insights = json.loads(text)
+            cleaned = InsightAgent._clean_json_response(raw)
+            insights = json.loads(cleaned)
             if isinstance(insights, list) and all(isinstance(s, str) for s in insights):
                 return insights if insights else None
             return None
@@ -266,14 +265,8 @@ IMPORTANT: Return ONLY the JSON array, no markdown, no code blocks."""
             return None
 
         try:
-            text = raw.strip()
-            if text.startswith("```"):
-                text = "\n".join(text.split("\n")[1:])
-            if text.endswith("```"):
-                text = "\n".join(text.split("\n")[:-1])
-            text = text.strip()
-
-            recs = json.loads(text)
+            cleaned = InsightAgent._clean_json_response(raw)
+            recs = json.loads(cleaned)
             valid = []
             for item in recs:
                 if isinstance(item, dict) and "rec" in item and "type" in item:
@@ -281,6 +274,37 @@ IMPORTANT: Return ONLY the JSON array, no markdown, no code blocks."""
             return valid if valid else None
         except (json.JSONDecodeError, TypeError, KeyError):
             return None
+
+    # -----------------------------------------------------------------
+    # AI-Powered: Subtab Insights (Outliers, Time Series, Missing)
+    # -----------------------------------------------------------------
+    @staticmethod
+    def generate_ai_outliers_insight(df: pd.DataFrame, outlier_info: dict) -> Optional[str]:
+        """Generate AI commentary on outlier profiles."""
+        if not is_gemini_configured() or not outlier_info:
+            return None
+        prompt = f"Analyze these outlier profiles in the dataset and provide a concise, 2-sentence executive interpretation referencing specific column names, outlier percentages, and recommended capping actions:\n{outlier_info}"
+        system_instruction = "You are a statistics expert. Be concise, precise, and use <b> HTML tags for emphasis."
+        return InsightAgent._call_gemini(prompt, system_instruction)
+
+    @staticmethod
+    def generate_ai_timeseries_insight(df: pd.DataFrame, date_col: str, num_col: str) -> Optional[str]:
+        """Generate AI commentary on time series trends."""
+        if not is_gemini_configured() or not date_col or not num_col:
+            return None
+        prompt = f"Analyze temporal changes for column '{num_col}' plotted over date column '{date_col}' in a dataset of {len(df)} rows. Provide a 2-sentence trend and seasonality interpretation using <b> HTML tags for emphasis."
+        system_instruction = "You are a time series forecasting analyst. Be concise, precise, and professional."
+        return InsightAgent._call_gemini(prompt, system_instruction)
+
+    @staticmethod
+    def generate_ai_missing_insight(df: pd.DataFrame, missing_df: pd.DataFrame) -> Optional[str]:
+        """Generate AI commentary on missing data patterns."""
+        if not is_gemini_configured() or missing_df.empty or missing_df["Missing Count"].sum() == 0:
+            return None
+        top_missing = missing_df.head(5).to_dict(orient="records")
+        prompt = f"Analyze these missing value counts in the dataset and provide a 2-sentence risk assessment and imputation recommendation using <b> HTML tags for emphasis:\n{top_missing}"
+        system_instruction = "You are a data quality expert. Be concise and precise."
+        return InsightAgent._call_gemini(prompt, system_instruction)
 
     # -----------------------------------------------------------------
     # Rule-Based Fallbacks (existing functionality preserved)
