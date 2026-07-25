@@ -152,6 +152,23 @@ def init_db():
                 saved_pipelines TEXT
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS reports (
+                id TEXT PRIMARY KEY,
+                project_id TEXT,
+                version INTEGER DEFAULT 1,
+                title TEXT,
+                author TEXT,
+                company TEXT,
+                department TEXT,
+                theme TEXT DEFAULT 'Corporate',
+                sections TEXT,
+                created_at TEXT,
+                dataset_name TEXT,
+                report_type TEXT DEFAULT 'Full Report',
+                file_path TEXT
+            )
+        """)
         conn.commit()
     finally:
         conn.close()
@@ -343,7 +360,7 @@ def save_project_worker(project_id: str, original_df, cleaned_df, project_name, 
             finally:
                 conn.close()
                 
-            set_active_session(project_id, clean_exit=False)
+            set_active_session(project_id, clean_exit=True)
         except Exception:
             pass
 
@@ -501,7 +518,7 @@ def load_project(project_id: str):
         finally:
             conn.close()
             
-        set_active_session(project_id, clean_exit=False)
+        set_active_session(project_id, clean_exit=True)
         return True
         
     except Exception as e:
@@ -672,6 +689,7 @@ def auto_backup(project_id: str):
         }
         with open(os.path.join(backup_dir, "backup_metadata.json"), "w", encoding="utf-8") as f:
             json.dump(meta, f, indent=4)
+        set_active_session(project_id, clean_exit=False)
     except Exception:
         pass
 
@@ -904,4 +922,99 @@ def update_project_name(project_id: str, new_name: str):
         pass
     finally:
         conn.close()
+
+
+# =============================================================================
+# Report Persistence Helpers
+# =============================================================================
+
+def save_report_meta(report_data: Dict[str, Any]) -> bool:
+    """Save report metadata to SQLite."""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO reports (
+                id, project_id, version, title, author, company, department,
+                theme, sections, created_at, dataset_name, report_type, file_path
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            report_data.get("id", str(uuid.uuid4())),
+            report_data.get("project_id", ""),
+            report_data.get("version", 1),
+            report_data.get("title", "Executive Report"),
+            report_data.get("author", "Data Analyst"),
+            report_data.get("company", "Data Pilot Org"),
+            report_data.get("department", "Analytics"),
+            report_data.get("theme", "Corporate"),
+            json.dumps(report_data.get("sections", [])),
+            report_data.get("created_at", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+            report_data.get("dataset_name", "Dataset"),
+            report_data.get("report_type", "Full Report"),
+            report_data.get("file_path", "")
+        ))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error saving report metadata: {e}")
+        return False
+    finally:
+        conn.close()
+
+
+def list_reports(project_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """List all reports stored in SQLite, optionally filtered by project_id."""
+    init_db()
+    reports = []
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        cursor = conn.cursor()
+        if project_id:
+            cursor.execute("SELECT * FROM reports WHERE project_id = ? ORDER BY version DESC", (project_id,))
+        else:
+            cursor.execute("SELECT * FROM reports ORDER BY created_at DESC")
+        rows = cursor.fetchall()
+        for r in rows:
+            item = dict(r)
+            item["sections"] = json.loads(item["sections"]) if item["sections"] else []
+            reports.append(item)
+    except Exception as e:
+        print(f"Error listing reports: {e}")
+    finally:
+        conn.close()
+    return reports
+
+
+def delete_report(report_id: str) -> bool:
+    """Delete a report record from SQLite."""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM reports WHERE id = ?", (report_id,))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error deleting report: {e}")
+        return False
+    finally:
+        conn.close()
+
+
+def get_next_report_version(project_id: str) -> int:
+    """Get the next version number for a project report."""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT MAX(version) FROM reports WHERE project_id = ?", (project_id,))
+        val = cursor.fetchone()[0]
+        return (val or 0) + 1
+    except Exception:
+        return 1
+    finally:
+        conn.close()
+
 
