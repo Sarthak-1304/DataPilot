@@ -22,7 +22,7 @@ Rules:
 """
         key = get_gemini_api_key()
         if not key:
-            return "Error: Gemini API Key not configured."
+            return "Error: AI API Key not configured."
             
         try:
             genai.configure(api_key=key)
