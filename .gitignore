@@ -106,3 +106,12 @@ assets/logo.png
 # API KEY
 .streamlit/secrets.toml
 # End of file
+
+# Runtime user data
+projects/[0-9a-fA-F]*
+
+# Runtime database
+projects/datapilot.db
+
+# Runtime session
+projects/active_session.json
