@@ -168,6 +168,18 @@ def render_reports():
     st.markdown("#### ⚡ Quick Report Preset Templates")
     preset_cols = st.columns(6)
     
+    all_possible_sections = [
+        "Executive Summary",
+        "Dataset Overview",
+        "Data Cleaning Report",
+        "Before vs After",
+        "Analysis Summary",
+        "Dashboard KPIs",
+        "Business Insights",
+        "Recommendations",
+        "Appendix"
+    ]
+
     preset_templates = {
         "Executive Summary": ["Executive Summary", "Dataset Overview", "Business Insights", "Recommendations"],
         "Full Business Report": ["Executive Summary", "Dataset Overview", "Data Cleaning Report", "Before vs After", "Analysis Summary", "Dashboard KPIs", "Business Insights", "Recommendations", "Appendix"],
@@ -186,6 +198,11 @@ def render_reports():
             if st.button(name, key=f"preset_{i}", use_container_width=True, type=btn_type):
                 st.session_state["report_preset"] = name
                 st.session_state["report_sections"] = sections
+                # Sync individual checkbox widget keys so Streamlit picks up
+                # the new values on rerun (it ignores `value=` when the key
+                # already exists in session_state).
+                for sec in all_possible_sections:
+                    st.session_state[f"sec_chk_{sec}"] = (sec in sections)
                 st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -211,17 +228,6 @@ def render_reports():
             theme_choice = st.selectbox("Report Styling Theme", options=["Corporate", "Modern", "Minimal", "Dark"], index=0, key="rep_theme")
 
         # Section Selector
-        all_possible_sections = [
-            "Executive Summary",
-            "Dataset Overview",
-            "Data Cleaning Report",
-            "Before vs After",
-            "Analysis Summary",
-            "Dashboard KPIs",
-            "Business Insights",
-            "Recommendations",
-            "Appendix"
-        ]
 
         if "report_sections" not in st.session_state:
             st.session_state["report_sections"] = preset_templates["Full Business Report"]
